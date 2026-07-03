@@ -1,0 +1,18 @@
+# The sole exposure mechanism: a plain-HTTP Service. ClusterIP by default;
+# switching to NodePort/LoadBalancer widens who holds full operator power -
+# see the trust model note in values.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tifera.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tifera.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "tifera.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http

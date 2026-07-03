@@ -1,0 +1,26 @@
+TifEra {{ .Chart.AppVersion }} deployed as {{ include "tifera.fullname" . }} in namespace {{ .Release.Namespace }}.
+
+Open the console:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "tifera.fullname" . }} 8080:{{ .Values.service.port }}
+  → http://localhost:8080
+
+TRUST MODEL - read this once:
+TifEra has no console authentication by design. Anyone who can reach the
+Service holds the full power of its ServiceAccount (shells in every visible
+container, file transfer, log access{{ if .Values.rbac.allowPodDelete }}, pod deletion{{ end }}).
+Access control is network reachability only.
+{{- if not .Values.networkPolicy.enabled }}
+
+Consider enabling the NetworkPolicy:  --set networkPolicy.enabled=true
+(and add ingress rules for your operators - see values.yaml).
+{{- end }}
+{{- if eq .Values.service.type "ClusterIP" }}
+
+The Service is ClusterIP (good): reachable only from inside the cluster or
+via kubectl port-forward.
+{{- else }}
+
+WARNING: service.type is {{ .Values.service.type }} - the console is exposed
+beyond the cluster network. Make sure that is what you want.
+{{- end }}

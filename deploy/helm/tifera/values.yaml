@@ -1,0 +1,63 @@
+# TifEra Helm chart values.
+#
+# Trust model: TifEra has NO console authentication. Whoever can reach the
+# Service holds the full power of TifEra's ServiceAccount. Keep the Service
+# ClusterIP + `kubectl port-forward` unless you have decided otherwise, and
+# consider enabling the NetworkPolicy below.
+
+image:
+  repository: tifera
+  tag: ""            # defaults to the chart appVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+service:
+  type: ClusterIP    # NodePort/LoadBalancer widens who holds full operator power
+  port: 80
+
+replicaCount: 1      # keep 1: single ReadWriteOnce PVC
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 256Mi
+
+persistence:
+  enabled: true      # snippets + action log survive pod rescheduling
+  size: 1Gi
+  storageClass: ""   # "" = cluster default
+  existingClaim: ""  # use a pre-created PVC instead
+
+rbac:
+  # The pod-restart quick action needs `delete pods`; disable to drop it.
+  allowPodDelete: true
+
+networkPolicy:
+  # Restrict who can reach the console. When enabled with an empty `ingress`
+  # list, ALL ingress to TifEra is denied - add rules for your operators.
+  enabled: false
+  ingress: []
+  # Example - allow only pods labeled for console access, in any namespace:
+  #   - from:
+  #       - namespaceSelector: {}
+  #         podSelector:
+  #           matchLabels:
+  #             tifera.stratza.dev/console-access: "allowed"
+
+config:
+  idleTimeoutSeconds: 1800
+  reconnectGraceSeconds: 10
+  maxUploadBytes: 2147483648
+  debugImage: busybox:1.36
+  recordSessions: false
+  castRetentionDays: 14
+  metricsIntervalSeconds: 15
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

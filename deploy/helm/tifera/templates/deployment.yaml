@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tifera.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tifera.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate  # single RWO PVC
+  selector:
+    matchLabels:
+      {{- include "tifera.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "tifera.labels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "tifera.fullname" . }}
+      automountServiceAccountToken: true  # TifEra's only credential
+      # Legacy service-link env vars (TIFERA_PORT=tcp://...) collide with
+      # TifEra's own config vars; the kubernetes.default vars the in-cluster
+      # check needs are injected regardless of this setting.
+      enableServiceLinks: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+        - name: tifera
+          image: {{ include "tifera.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # Downward API identity.
+            - name: TIFERA_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: TIFERA_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TIFERA_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: TIFERA_IDLE_TIMEOUT
+              value: {{ .Values.config.idleTimeoutSeconds | quote }}
+            - name: TIFERA_RECONNECT_GRACE
+              value: {{ .Values.config.reconnectGraceSeconds | quote }}
+            - name: TIFERA_MAX_UPLOAD
+              value: {{ .Values.config.maxUploadBytes | quote }}
+            - name: TIFERA_DEBUG_IMAGE
+              value: {{ .Values.config.debugImage | quote }}
+            {{- if .Values.config.recordSessions }}
+            - name: TIFERA_RECORD_SESSIONS
+              value: "1"
+            - name: TIFERA_CAST_RETENTION_DAYS
+              value: {{ .Values.config.castRetentionDays | quote }}
+            {{- end }}
+            - name: TIFERA_METRICS_INTERVAL
+              value: {{ .Values.config.metricsIntervalSeconds | quote }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | default (printf "%s-data" (include "tifera.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

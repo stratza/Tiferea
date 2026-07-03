@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node (tooling only - the frontend has no build step)
+node_modules/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Local artifacts
+*.log
+*.tar
+*.tar.gz
+*.tgz
+tifera.db
+*.cast
+
+# Helm
+deploy/helm/*.tgz
+deploy/helm/**/charts/
+
+# Never commit cluster credentials
+kubeconfig
+kubeconfig.*
+k3s.yaml
+*.kubeconfig
+.env
+.env.*

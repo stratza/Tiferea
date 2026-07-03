@@ -1,0 +1,83 @@
+# Changelog
+
+All notable changes to TifEra are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
+adheres to [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+### Changed
+- Added a Helm chart (`deploy/helm/tifera`) as an alternative to the plain
+  manifest.
+- Documentation restructured around README/CONTRIBUTING/SECURITY; internal
+  spec references removed from code and docs.
+
+## [0.1.0] - 2026-07-03
+
+First working release: deployed and exercised end-to-end on a single-node
+k3s cluster (v1.36).
+
+### Added
+- **In-cluster-only runtime**: startup verification of the pod environment
+  with fail-fast refusal outside a cluster (< 5 s, no bypass), in-cluster
+  K8s client only, Downward API identity, RBAC self-check surfaced via
+  `/readyz` and a UI banner.
+- **Interactive shells**: one-click PTY terminals (xterm.js) over
+  `pods/exec`, shell auto-detection (`bash` → `sh` → `ash`), tabbed layout,
+  10k scrollback, search-in-buffer, resize propagation, reconnect-on-drop
+  with scrollback replay, idle timeout, ephemeral debug containers for
+  shell-less images.
+- **File transfer & browser**: agentless exec-based file operations
+  (`tar`/`cat`/`head -c` pipes), chunked uploads with drag-and-drop, file
+  and directory (tar.gz) downloads, small-file editor with conflict
+  detection, rename/delete/chmod/mkdir, per-container bookmarks.
+- **Logs**: live follow with pause, regex filter and level highlighting,
+  previous-instance logs, merged multi-container view, downloads with
+  tail/time-range selection.
+- **Metrics**: metrics.k8s.io polling with 60-minute per-container history
+  and sparklines, usage vs requests/limits indicators, node
+  allocatable-vs-used, opt-in `df` disk sampling; degrades gracefully
+  without metrics-server.
+- **Topology**: Services → Pods and workload → Pods graph with optional
+  ConfigMap/Secret mount edges, unhealthy paths highlighted, click-through
+  to pod details.
+- **Multi-client presence**: per-browser client identity, fully isolated
+  sessions, presence badges, mutual same-container shell warnings, editor
+  conflict warnings.
+- **Accountability**: SQLite action log with client identity + IP and JSONL
+  export; optional terminal session recording (.cast files) with retention
+  policy.
+- **Operator tools**: pod restart with self-termination protection for
+  TifEra's own pod, pod YAML view, events feed, command snippets, broadcast
+  input to multiple terminals.
+- **Deployment**: single-file manifest (`deploy/tifera.yaml`) with
+  least-privilege ClusterRole, Deployment, ClusterIP Service, PVC and a
+  commented sample NetworkPolicy; Dockerfile; GitHub Actions CI including
+  the outside-cluster refusal test.
+- Frontend: dependency-free vanilla ES modules with vendored xterm.js.
+
+### Fixed
+- **Event-loop deadlock on log-stream close** - closing a followed logs tab
+  called `resp.close()` on the asyncio event loop while the reader thread
+  held the buffered-reader lock, freezing the entire server until the
+  liveness probe killed the pod. Streams are now aborted via socket
+  `shutdown()` and closed by their reader thread; terminal session closes
+  also moved off the event loop.
+- **403 on every exec-based feature** - the ClusterRole granted only
+  `create` on `pods/exec`, but WebSocket clients connect with GET (verb
+  `get`), breaking shells, file transfer and disk sampling. RBAC now grants
+  `get`+`create` on `pods/exec`/`pods/portforward` and `patch` on
+  `pods/ephemeralcontainers`; the startup RBAC self-check verifies the
+  verbs actually used.
+- **Env-var collision crash** - a Service named `tifera` makes kubelet
+  inject `TIFERA_PORT=tcp://...`, which crashed config parsing at startup.
+  The setting was renamed `TIFERA_LISTEN_PORT` and the pod sets
+  `enableServiceLinks: false`.
+- UI: duplicate tabs replaced by focus-and-blink deduplication (with an
+  explicit ⊕ button for a second shell in the same container), panel
+  stacking/z-order hardened, ANSI escape codes stripped from log views, a
+  visible banner when the console loses its backend connection, probe
+  timeouts hardened in the manifest.
+
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/stratza/tiferea/releases/tag/v0.1.0

@@ -1,0 +1,217 @@
+# TifEra - in-cluster-only Kubernetes operations console.
+# This manifest is the only supported way to run TifEra:
+#
+#     kubectl apply -f tifera.yaml
+#     kubectl -n tifera port-forward svc/tifera 8080:80
+#     → http://localhost:8080
+#
+# Trust model: TifEra has NO console authentication. Whoever can
+# reach the Service holds the full power of TifEra's ServiceAccount. Keep the
+# Service ClusterIP + port-forward unless you have decided otherwise, and
+# consider the sample NetworkPolicy at the bottom of this file.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tifera
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tifera
+  namespace: tifera
+---
+# Least-privilege ClusterRole. If you trim it, TifEra surfaces the missing
+# permissions as a UI banner instead of failing silently.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tifera
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "events", "nodes", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  # WebSocket clients open exec/portforward with GET (verb "get");
+  # SPDY clients like kubectl use POST (verb "create"). Both are needed.
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/attach", "pods/portforward"]
+    verbs: ["get", "create"]
+  # Ephemeral debug containers are added with PATCH.
+  - apiGroups: [""]
+    resources: ["pods/ephemeralcontainers"]
+    verbs: ["patch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Pod restart quick action; remove this rule to disable deletes.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods", "nodes"]
+    verbs: ["get", "list"]
+  # Startup self-checks.
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectaccessreviews"]
+    verbs: ["create"]
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["selfsubjectreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tifera
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tifera
+subjects:
+  - kind: ServiceAccount
+    name: tifera
+    namespace: tifera
+---
+# Persistence for TifEra's own data only: snippets + action log.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tifera-data
+  namespace: tifera
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tifera
+  namespace: tifera
+  labels:
+    app: tifera
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # single RWO PVC
+  selector:
+    matchLabels:
+      app: tifera
+  template:
+    metadata:
+      labels:
+        app: tifera
+    spec:
+      serviceAccountName: tifera
+      automountServiceAccountToken: true  # required
+      # Legacy service-link env vars (TIFERA_PORT=tcp://...) collide with
+      # TifEra's own config vars; the kubernetes.default vars the in-cluster
+      # check needs are injected regardless of this setting.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+        - name: tifera
+          # Replace with your registry path once images are published.
+          image: tifera:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # Downward API identity.
+            - name: TIFERA_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: TIFERA_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TIFERA_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: tifera-data
+        - name: tmp
+          emptyDir: {}
+---
+# The sole exposure mechanism: a plain-HTTP Service. ClusterIP by
+# default; switching to NodePort/LoadBalancer is an explicit opt-in and widens
+# who holds full operator power - see the trust model note at the top.
+apiVersion: v1
+kind: Service
+metadata:
+  name: tifera
+  namespace: tifera
+  labels:
+    app: tifera
+spec:
+  type: ClusterIP
+  selector:
+    app: tifera
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# Sample NetworkPolicy - commented out on purpose. Uncomment and
+# adapt the `from` clause to restrict who can reach the console; by default
+# any pod (and, with port-forward, any kubeconfig holder) can.
+#
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: tifera-ingress
+#   namespace: tifera
+# spec:
+#   podSelector:
+#     matchLabels:
+#       app: tifera
+#   policyTypes: ["Ingress"]
+#   ingress:
+#     - from:
+#         # e.g. only pods labeled as consoles-allowed, in any namespace:
+#         - namespaceSelector: {}
+#           podSelector:
+#             matchLabels:
+#               tifera.stratza.dev/console-access: "allowed"
+#       ports:
+#         - port: 8080

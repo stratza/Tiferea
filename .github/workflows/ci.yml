@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest
+      - name: Unit tests (includes the outside-cluster refusal test)
+        run: pytest backend/tests -q
+        env:
+          PYTHONPATH: backend
+      - name: Frontend syntax check
+        run: |
+          for f in backend/static/js/*.js; do
+            cp "$f" /tmp/check.mjs
+            node --check /tmp/check.mjs
+          done
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t tifera:ci backend
+      - name: Image refuses to run outside a cluster
+        run: |
+          set +e
+          timeout 15 docker run --rm tifera:ci > out.log 2>&1
+          code=$?
+          set -e
+          cat out.log
+          test "$code" -ne 0
+          grep -q "must run inside a Kubernetes cluster" out.log

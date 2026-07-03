@@ -1,0 +1,19 @@
+{{- if .Values.networkPolicy.enabled }}
+# Restricts who can reach the console - the only access control TifEra has.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "tifera.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tifera.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "tifera.selectorLabels" . | nindent 6 }}
+  policyTypes: ["Ingress"]
+  {{- with .Values.networkPolicy.ingress }}
+  ingress:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
