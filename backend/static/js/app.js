@@ -8,6 +8,7 @@ import { broadcastLine, refreshThemes } from './terminal.js';
 import { openMetrics } from './metricsview.js';
 import { openTopology } from './topologyview.js';
 import { openActions, openEventsFeed, openSnippets } from './toolsview.js';
+import { openKubectl } from './kubectl.js';
 import { initDashboard } from './dashboard.js';
 import { initPalette, openPalette } from './palette.js';
 
@@ -41,7 +42,7 @@ $('#client-name-btn').addEventListener('click', () => {
 
 // -- sidebar wiring ---------------------------------------------------------------
 
-const OPENERS = { metrics: openMetrics, topology: openTopology,
+const OPENERS = { kubectl: openKubectl, metrics: openMetrics, topology: openTopology,
                   events: openEventsFeed, actions: openActions,
                   snippets: openSnippets };
 for (const btn of document.querySelectorAll('#global-tabs [data-open]')) {
@@ -87,7 +88,7 @@ function updateCounts() {
     el('span', { class: 'sb-metric', title: 'total pods' }, `${pods.length} pods`));
   let sessions = 0;
   for (const list of state.presence.values()) sessions += list.length;
-  $('#sb-sessions').textContent = sessions ? `⌨ ${sessions} session${sessions > 1 ? 's' : ''}` : '';
+  $('#sb-sessions').textContent = sessions ? `${sessions} session${sessions > 1 ? 's' : ''}` : '';
 }
 
 on('hello', () => {
@@ -107,7 +108,7 @@ on('presence', (m) => {
   for (const s of shared) {
     if (!knownShared.has(s.sessionId)) {
       toast(`${s.clientName || s.clientId.slice(0, 6)} is sharing a shell in ${m.target} - `
-            + 'click 🔗 join in the tree to collaborate', 'info', 6000);
+            + 'click "join" in the tree to collaborate', 'info', 6000);
     }
   }
   // Forget ended shares on this target so a future one re-announces.
@@ -132,7 +133,7 @@ on('rbac', () => {
     return;
   }
   banner.textContent =
-    `⚠ ServiceAccount is missing permissions: ${state.rbac.join(', ')} - `
+    `ServiceAccount is missing permissions: ${state.rbac.join(', ')} - `
     + 'some features will fail. Fix the ClusterRole in deploy/tifera.yaml.';
   banner.classList.remove('hidden');
 });

@@ -20,7 +20,7 @@ function bar(used, total, fmt) {
 export function openMetrics() {
   if (focusOrBlink(TAB_ID)) return;
   const body = el('div', { class: 'metrics-root' });
-  addTab({ id: TAB_ID, title: '📈 Metrics', kind: 'metrics', el: body });
+  addTab({ id: TAB_ID, title: 'Metrics', kind: 'metrics', el: body });
   on('metrics', () => { if (findTab(TAB_ID)) render(); });
   render();
 

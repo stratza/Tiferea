@@ -48,7 +48,7 @@ open public issues for unpatched vulnerabilities.
 
 | Version | Supported |
 |---|---|
-| 0.1.x | ✅ |
+| 0.1.x | yes |
 
 ## Hardening checklist for operators
 

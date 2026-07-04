@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-04
+
+### Added
+- **In-cluster kubectl console** (Rancher-style): an interactive shell in
+  TifEra's own container, where `kubectl` authenticates via in-cluster
+  config and is bounded by TifEra's ServiceAccount RBAC (not cluster-admin).
+  kubectl is baked into the image per target arch.
+- **Redesigned inventory navigator**: a segmented `All / Running / Issues`
+  status filter with live counts, a "hide finished" toggle that strips
+  completed jobs, helm hooks and evicted pods, sticky namespace groups, pod
+  cards and container chips.
+- **Middle-click** (scroll-wheel button) closes tabs, like a browser.
+
+### Changed
+- The command palette and inventory hide helm bookkeeping noise (completed
+  hook pods and `sh.helm.release.v1.*` secrets).
+- **Removed all emoji** from the UI and docs for a clean monochrome look;
+  icon-only buttons became text labels. The per-container logs/files icons
+  in the inventory are kept for at-a-glance clarity.
+
+### Fixed
+- **All open tabs rendered at once** after the split-pane change - a CSS
+  cascade bug where component roots (`.term-root`, `.fs-root`, …) set
+  `display:flex` and outranked the panel-hide rule. Non-visible panes are
+  now reliably hidden, and split controls collapse back to plain tabs once
+  a single tab remains.
+
 ## [0.1.1] - 2026-07-04
 
 Collaboration, a command palette, split panes, a live dashboard, and a
@@ -130,6 +157,7 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/stratza/tiferea/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/stratza/tiferea/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/stratza/tiferea/releases/tag/v0.1.0

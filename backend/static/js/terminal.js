@@ -54,7 +54,7 @@ export function invalidateSnippets() { snippetsCache = null; }
 export function openTerminal(namespace, pod, container, opts = {}) {
   const target = `${namespace}/${pod}/${container}`;
   const joining = !!opts.join;
-  // One tab per container by default; joins and ⊕ open extra sessions.
+  // One tab per container by default; joins and + open extra sessions.
   const tabId = (opts.fresh || joining) ? `term-${target}#${++seq}` : `term-${target}`;
   if (!opts.fresh && !joining && focusOrBlink(tabId)) return;
   const fontKey = 'tifera.termFontSize';
@@ -87,14 +87,14 @@ export function openTerminal(namespace, pod, container, opts = {}) {
   // Owner-only share toggle; collaborators get a leave button instead.
   const shareBtn = el('button', { class: 'share-btn', title: 'share this session with other operators',
     onclick: () => { shared = !shared; sendCtrl({ type: 'share', on: shared }); renderBanner(); updateShareBtn(); } },
-    '⇄ share');
+    'share');
   function updateShareBtn() {
-    shareBtn.textContent = shared ? '⇄ sharing' : '⇄ share';
+    shareBtn.textContent = shared ? 'sharing' : 'share';
     shareBtn.classList.toggle('active', shared);
   }
 
   const ownerCtrls = [
-    el('button', { text: '⊕', title: 'open another session in this container',
+    el('button', { text: '+', title: 'open another session in this container',
                    onclick: () => openTerminal(namespace, pod, container, { ...opts, join: null, fresh: true }) }),
     shareBtn,
     el('button', { text: 'kill', class: 'danger', title: 'terminate this session',
@@ -171,14 +171,14 @@ export function openTerminal(namespace, pod, container, opts = {}) {
     if (joining) {
       banner.classList.add('joined');
       banner.textContent =
-        `🔗 joined ${opts.owner || 'a'}'s shared session · ${participants} connected · everyone here can type`;
+        `joined ${opts.owner || 'a'}'s shared session · ${participants} connected · everyone here can type`;
       banner.classList.remove('hidden');
       return;
     }
     if (shared) {
       banner.classList.add('shared');
       banner.replaceChildren(
-        `🔗 sharing this session · ${participants} connected · anyone who can reach TifEra can join and type `,
+        `sharing this session · ${participants} connected · anyone who can reach TifEra can join and type `,
         el('button', { class: 'link-btn', text: 'stop sharing',
                        onclick: () => { shared = false; sendCtrl({ type: 'share', on: false }); renderBanner(); updateShareBtn(); } }));
       banner.classList.remove('hidden');
@@ -186,7 +186,7 @@ export function openTerminal(namespace, pod, container, opts = {}) {
     }
     if (others.length) {
       const names = [...new Set(others.map(sessionLabel))].join(', ');
-      banner.textContent = `⚠ ${names} also ${others.length > 1 ? 'have shells' : 'has a shell'} open in this container`;
+      banner.textContent = `${names} also ${others.length > 1 ? 'have shells' : 'has a shell'} open in this container`;
       banner.classList.remove('hidden');
       return;
     }
@@ -296,7 +296,7 @@ export function openTerminal(namespace, pod, container, opts = {}) {
 
   addTab({
     id: tabId,
-    title: `${joining ? '🔗' : '⌨'} ${container}`,
+    title: `${joining ? 'join' : 'shell'} ${container}`,
     kind: 'terminal',
     el: root,
     onShow: () => { fit.fit(); term.focus(); },

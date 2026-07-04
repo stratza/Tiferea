@@ -11,7 +11,7 @@ export function openDescribe(kind, namespace, name) {
   const root = el('div', { class: 'describe-root' },
     el('div', { class: 'term-toolbar' },
       el('span', { class: 'target-label', text: `${kind} · ${namespace}/${name}` }),
-      el('button', { text: '⟳', title: 'reload', onclick: load })),
+      el('button', { text: 'refresh', title: 'reload', onclick: load })),
     body);
 
   async function load() {
@@ -24,6 +24,6 @@ export function openDescribe(kind, namespace, name) {
     }
   }
 
-  addTab({ id: tabId, title: `📄 ${name}`, kind: 'describe', el: root });
+  addTab({ id: tabId, title: `${name}`, kind: 'describe', el: root });
   load();
 }

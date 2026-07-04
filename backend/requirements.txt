@@ -2,3 +2,4 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 kubernetes>=29.0
 PyYAML>=6.0
+ptyprocess>=0.7   # in-cluster kubectl console (Unix PTY; Linux-only)

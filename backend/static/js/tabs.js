@@ -159,6 +159,9 @@ function renderBar() {
              + (s === focused && s >= 0 ? ' active' : '')
              + (t.id === blinkId ? ' blink' : ''),
       onclick: () => activate(t.id),
+      // Middle-click (scroll-wheel button) closes the tab, like a browser.
+      onmousedown: (e) => { if (e.button === 1) e.preventDefault(); },
+      onauxclick: (e) => { if (e.button === 1) { e.preventDefault(); closeTab(t.id); } },
     },
     el('span', { class: 'tab-title', text: t.title }),
     el('button', {
@@ -171,8 +174,8 @@ function renderBar() {
   const showCtl = tabs.length >= 2 || layout > 1;
   const ctl = showCtl ? el('div', { class: 'layout-ctl' },
     el('span', { class: 'layout-label', text: 'layout' }),
-    layoutBtn(1, '▢', 'single (tabs)'),
-    layoutBtn(2, '◫', 'split in two'),
-    layoutBtn(4, '⊞', 'four panes')) : null;
+    layoutBtn(1, '1', 'single (tabs)'),
+    layoutBtn(2, '2', 'split in two'),
+    layoutBtn(4, '4', 'four panes')) : null;
   bar.replaceChildren(...tabEls, ...(ctl ? [ctl] : []));
 }

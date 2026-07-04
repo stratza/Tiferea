@@ -9,6 +9,7 @@ import { openDescribe } from './describe.js';
 import { openMetrics } from './metricsview.js';
 import { openTopology } from './topologyview.js';
 import { openActions, openEventsFeed, openSnippets } from './toolsview.js';
+import { openKubectl } from './kubectl.js';
 
 const MAX = 40;
 let items = [];
@@ -17,8 +18,8 @@ let sel = 0;
 // Non-pod resource name index (feature 5), refreshed lazily on palette open.
 let resources = [];
 let resourcesAt = 0;
-const KIND_ICON = { Service: '🔀', ConfigMap: '🗄', Secret: '🔑',
-                    Deployment: '📦', StatefulSet: '📦', DaemonSet: '📦' };
+const KIND_ICON = { Service: '', ConfigMap: '', Secret: '',
+                    Deployment: '', StatefulSet: '', DaemonSet: '' };
 
 async function refreshResources() {
   if (Date.now() - resourcesAt < 15000 && resources.length) return;
@@ -30,11 +31,12 @@ async function refreshResources() {
 
 function views() {
   return [
-    { icon: '📊', title: 'Metrics', sub: 'view', run: openMetrics },
-    { icon: '🕸', title: 'Topology', sub: 'view', run: openTopology },
-    { icon: '⚡', title: 'Events', sub: 'view', run: openEventsFeed },
-    { icon: '☰', title: 'Actions', sub: 'action log', run: openActions },
-    { icon: '✂', title: 'Snippets', sub: 'view', run: openSnippets },
+    { icon: '', title: 'kubectl', sub: 'in-cluster console', run: openKubectl },
+    { icon: '', title: 'Metrics', sub: 'view', run: openMetrics },
+    { icon: '', title: 'Topology', sub: 'view', run: openTopology },
+    { icon: '', title: 'Events', sub: 'view', run: openEventsFeed },
+    { icon: '', title: 'Actions', sub: 'action log', run: openActions },
+    { icon: '', title: 'Snippets', sub: 'view', run: openSnippets },
   ];
 }
 
@@ -53,7 +55,7 @@ function build(query) {
         const hay = `${podHay}/${c.name}`.toLowerCase();
         if (hay.includes(q)) {
           out.push({
-            icon: '⌨', title: c.name,
+            icon: '', title: c.name,
             sub: `shell · ${p.namespace}/${p.name}`,
             run: () => openTerminal(p.namespace, p.name, c.name),
           });
@@ -62,17 +64,19 @@ function build(query) {
       }
       if (!addedPod && podHay.includes(q)) {
         out.push({
-          icon: '▣', title: p.name, sub: `pod · ${p.namespace}`,
+          icon: '', title: p.name, sub: `pod · ${p.namespace}`,
           run: () => openPod(p),
         });
       }
     }
     for (const r of resources) {
       if (out.length > MAX) break;
+      // Skip helm bookkeeping secrets - pure noise.
+      if (r.kind === 'Secret' && r.name.startsWith('sh.helm.release.v1.')) continue;
       if (`${r.namespace}/${r.name}`.toLowerCase().includes(q) ||
           r.kind.toLowerCase().includes(q)) {
         out.push({
-          icon: KIND_ICON[r.kind] || '📄',
+          icon: KIND_ICON[r.kind] || '',
           title: r.name, sub: `${r.kind} · ${r.namespace}`,
           run: () => openDescribe(r.kind, r.namespace, r.name),
         });

@@ -7,7 +7,7 @@
 <br/>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/stratza/tiferea/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI&labelColor=1a1a1a)](https://github.com/stratza/tiferea/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.1-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.2-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-%E2%89%A5%201.27-4a4a4a?style=for-the-badge&logo=kubernetes&logoColor=white&labelColor=1a1a1a)](deploy/)
 [![Python](https://img.shields.io/badge/python-3.12-4a4a4a?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a1a)](backend/)
 [![License](https://img.shields.io/badge/license-MIT-9e9e9e?style=for-the-badge&labelColor=1a1a1a)](LICENSE)
@@ -45,6 +45,7 @@
 | 🕸 | **Topology** | Services → Pods, workloads → Pods, optional ConfigMap/Secret mount edges, unhealthy paths highlighted, drag-to-pan map, click-through to details |
 | 👥 | **Multi-operator** | Isolated sessions per browser, presence badges, mutual "someone else has a shell here" warnings, **collaborative shared sessions** (join a colleague's live shell), edit-conflict courtesy checks |
 | 🔍 | **Command palette** | `Ctrl+K` to search pods, containers, Services, Deployments, ConfigMaps and Secrets (names only), or jump to any view |
+| ⎈ | **kubectl console** | Rancher-style in-cluster kubectl shell, authenticated as TifEra's ServiceAccount (bounded by its RBAC) |
 | 🧾 | **Accountability** | Action log (shell/file/quick actions with client identity + IP, JSONL export), optional terminal session recording (.cast files) |
 | 🛠 | **Tools** | Pod restart with self-protection for TifEra's own pod, bulk multi-select actions, YAML/describe view (Secret values masked), events feed, command snippets, broadcast input to multiple terminals |
 
@@ -77,9 +78,9 @@ The frontend is deliberately dependency-free: vanilla ES modules with vendored x
 
 ```sh
 # pinned manifest attached to each GitHub Release
-kubectl apply -f https://github.com/stratza/tiferea/releases/latest/download/tifera-0.1.1.yaml
+kubectl apply -f https://github.com/stratza/tiferea/releases/latest/download/tifera-0.1.2.yaml
 # …or Helm (chart published as an OCI artifact):
-helm install tifera oci://ghcr.io/stratza/charts/tifera --version 0.1.1 -n tifera --create-namespace
+helm install tifera oci://ghcr.io/stratza/charts/tifera --version 0.1.2 -n tifera --create-namespace
 
 kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080
 ```
@@ -87,14 +88,14 @@ kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080
 **From source** (local build into your cluster):
 
 ```sh
-docker build -t tifera:0.1.1 backend
-# kind: `kind load docker-image tifera:0.1.1`  ·  k3d: `k3d image import tifera:0.1.1`
+docker build -t tifera:0.1.2 backend
+# kind: `kind load docker-image tifera:0.1.2`  ·  k3d: `k3d image import tifera:0.1.2`
 kubectl apply -f deploy/tifera.yaml                 # or: helm install tifera deploy/helm/tifera -n tifera --create-namespace
 kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080  - no login, no configuration
 ```
 
 > [!NOTE]
-> **v0.1.1** - collaborative shared sessions, split-pane tiling, a command palette, a live dashboard and a monochrome UI, on top of the first working release. Deployed and exercised end-to-end on a single-node k3s v1.36 cluster. See the [CHANGELOG](CHANGELOG.md) for the full list, including the war stories.
+> **v0.1.2** - adds an in-cluster kubectl console, a redesigned inventory navigator with status filters, and a clean monochrome (emoji-free) UI, on top of collaborative sessions, split-pane tiling and the command palette. Deployed and exercised end-to-end on a single-node k3s v1.36 cluster. See the [CHANGELOG](CHANGELOG.md) for the full list, including the war stories.
 
 <details>
 <summary><b>📁 Repository layout</b></summary>
@@ -141,6 +142,61 @@ deploy/
 
 With Helm, set these through `values.yaml` (`config.*`, `persistence.*`, `rbac.allowPodDelete`, `networkPolicy.*`).
 </details>
+
+---
+
+## 🛰️ Air-Gapped Deployment
+
+TifEra suits disconnected clusters well: at **runtime** it talks only to the in-cluster API server (`kubernetes.default.svc`) and pulls nothing - `kubectl` and `xterm.js` are baked into the image. The only internet touchpoints are at **build time** and **image distribution**.
+
+**1. Build on a connected machine** (the build fetches the base image, Python deps and kubectl):
+
+```sh
+docker build -t tifera:0.1.2 backend
+# different arch on the air-gapped side? build multi-arch:
+docker buildx build --platform linux/amd64,linux/arm64 -t tifera:0.1.2 backend
+# pin kubectl for reproducibility: --build-arg KUBECTL_VERSION=v1.31.4
+```
+
+**2. Move the image into the cluster** - pick one:
+
+```sh
+# a) internal registry (recommended)
+docker tag  tifera:0.1.2 registry.internal.example/tifera:0.1.2
+docker push registry.internal.example/tifera:0.1.2
+
+# b) tarball import (no registry) - load into each node's runtime
+docker save tifera:0.1.2 -o tifera-0.1.2.tar     # on the connected box
+#   copy the tar to the node, then:
+sudo k3s ctr images import tifera-0.1.2.tar       # k3s / containerd
+#   plain containerd: sudo ctr -n k8s.io images import tifera-0.1.2.tar
+#   kind:            kind load image-archive tifera-0.1.2.tar
+```
+
+**3. Mirror the one runtime-pulled image.** The *only* image TifEra can pull at runtime is the ephemeral debug container (default `busybox:1.36`), used to inspect distroless/shell-less targets. Mirror it and point TifEra at the copy - or skip it (the feature simply errors clearly when used):
+
+```sh
+docker tag busybox:1.36 registry.internal.example/busybox:1.36
+docker push registry.internal.example/busybox:1.36
+# then set TIFERA_DEBUG_IMAGE (env) or Helm config.debugImage to that path
+```
+
+**4. Point the manifest at your image and deploy:**
+
+```sh
+# plain manifest - rewrite the image reference on the way in:
+sed 's#image: tifera:0.1.2#image: registry.internal.example/tifera:0.1.2#' \
+  deploy/tifera.yaml | kubectl apply -f -
+
+# …or Helm:
+helm install tifera deploy/helm/tifera -n tifera --create-namespace \
+  --set image.repository=registry.internal.example/tifera \
+  --set image.tag=0.1.2 \
+  --set config.debugImage=registry.internal.example/busybox:1.36
+```
+
+> [!NOTE]
+> **metrics-server** is optional - without it the metrics panels degrade gracefully; mirror and install it too if you want them. The browser needs no internet either (xterm.js is vendored into the image), only reachability to the Service / port-forward.
 
 ---
 

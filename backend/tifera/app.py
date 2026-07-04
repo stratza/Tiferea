@@ -23,7 +23,7 @@ from kubernetes.client import ApiClient
 
 from . import __version__
 from . import config as cfg
-from . import debug, fsops, resources, topology
+from . import debug, fsops, kubeshell, resources, topology
 from .resources import resource_index
 from .actionlog import actionlog
 from .broadcast import broadcaster
@@ -54,6 +54,7 @@ async def lifespan(app: FastAPI):
     snippet_store.open()
     inventory.start()
     sessions.start()
+    kubeshell.shells.start()
     metrics_poller.start()
     threading.Thread(target=_run_rbac_check, args=(app,),
                      name="rbac-check", daemon=True).start()
@@ -62,6 +63,8 @@ async def lifespan(app: FastAPI):
     metrics_poller.stop()
     sessions.stop()
     sessions.close_all("backend shutting down")
+    kubeshell.shells.stop()
+    kubeshell.shells.close_all("backend shutting down")
     snippet_store.close()
     actionlog.close()
 
@@ -169,6 +172,7 @@ def api_config():
         "recordSessions": cfg.RECORD_SESSIONS,
         "idleTimeoutSeconds": cfg.IDLE_TIMEOUT_SECONDS,
         "reconnectGraceSeconds": cfg.RECONNECT_GRACE_SECONDS,
+        "kubectlConsole": kubeshell.available()[0],
     }
 
 
@@ -641,6 +645,80 @@ async def ws_terminal(ws: WebSocket, namespace: str, pod: str, container: str):
         forward.cancel()
         if not session.closed.is_set():
             session.detach(handle)  # keep the PTY for reconnect / collaborators
+
+
+# -- /ws/kubectl: in-cluster kubectl console (Rancher-style) ----------------
+
+@app.websocket("/ws/kubectl")
+async def ws_kubectl(ws: WebSocket):
+    """Interactive shell in TifEra's own container (kubectl authenticates as
+    TifEra's ServiceAccount). Binary frames both ways; JSON control in
+    {"type":"resize"|"close"}. The shell is killed on disconnect (no
+    reattach). Query: clientId, clientName, cols, rows."""
+    if not _origin_ok(ws):
+        await ws.close(code=4403)
+        return
+    await ws.accept()
+    p = ws.query_params
+    ok, why = kubeshell.available()
+    if not ok:
+        await ws.send_json({"type": "error", "error": f"kubectl console unavailable: {why}"})
+        await ws.close()
+        return
+
+    loop = asyncio.get_running_loop()
+    q: asyncio.Queue[bytes | None] = asyncio.Queue()
+
+    def sink(chunk: bytes | None) -> None:
+        loop.call_soon_threadsafe(q.put_nowait, chunk)
+
+    try:
+        shell = await asyncio.to_thread(
+            kubeshell.shells.create, sink,
+            client_id=p.get("clientId", ""), client_name=p.get("clientName", ""),
+            client_ip=ws.client.host if ws.client else "",
+            cols=int(p.get("cols", "80") or 80), rows=int(p.get("rows", "24") or 24))
+    except Exception as exc:  # noqa: BLE001
+        await ws.send_json({"type": "error", "error": f"cannot start kubectl console: {exc}"})
+        await ws.close()
+        return
+
+    await ws.send_json({"type": "ready", "sessionId": shell.id})
+
+    async def to_browser() -> None:
+        try:
+            while True:
+                chunk = await q.get()
+                if chunk is None:
+                    await ws.send_json({"type": "exit", "message": shell.exit_message})
+                    await ws.close()
+                    return
+                await ws.send_bytes(chunk)
+        except Exception:  # noqa: BLE001
+            pass
+
+    forward = asyncio.create_task(to_browser())
+    try:
+        while True:
+            msg = await ws.receive()
+            if msg["type"] == "websocket.disconnect":
+                break
+            if (data := msg.get("bytes")) is not None:
+                shell.write_stdin(data)
+            elif (text := msg.get("text")) is not None:
+                try:
+                    ctrl = json.loads(text)
+                    if ctrl.get("type") == "resize":
+                        shell.resize(int(ctrl["cols"]), int(ctrl["rows"]))
+                    elif ctrl.get("type") == "close":
+                        shell.close("closed by client")
+                except (ValueError, KeyError, TypeError):
+                    continue
+    except WebSocketDisconnect:
+        pass
+    finally:
+        forward.cancel()
+        shell.close("console disconnected")
 
 
 # -- /ws/logs: live-follow and previous-instance logs ----------------------

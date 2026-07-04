@@ -12,7 +12,7 @@
   <div id="app">
     <aside id="sidebar">
       <header id="brand">
-        <span class="logo"><span class="logo-hex">⬢</span> TifEra</span>
+        <span class="logo">TifEra</span>
         <button id="theme-btn" class="icon-btn" title="toggle dark/light theme">◐</button>
       </header>
 
@@ -25,18 +25,23 @@
       <input id="filter" placeholder="filter: name, ns, label=x, node" autocomplete="off">
 
       <nav id="global-tabs">
-        <button data-open="metrics"><span class="nav-ico">📊</span>Metrics</button>
-        <button data-open="topology"><span class="nav-ico">🕸</span>Topology</button>
-        <button data-open="events"><span class="nav-ico">⚡</span>Events</button>
-        <button data-open="actions"><span class="nav-ico">☰</span>Actions</button>
-        <button data-open="snippets"><span class="nav-ico">✂</span>Snippets</button>
-        <button id="bcast-toggle" title="broadcast input to multiple terminals"><span class="nav-ico">📡</span>Broadcast</button>
+        <button data-open="kubectl">kubectl</button>
+        <button data-open="metrics">Metrics</button>
+        <button data-open="topology">Topology</button>
+        <button data-open="events">Events</button>
+        <button data-open="actions">Actions</button>
+        <button data-open="snippets">Snippets</button>
+        <button id="bcast-toggle" title="broadcast input to multiple terminals">Broadcast</button>
       </nav>
 
       <div id="rbac-banner" class="banner hidden"></div>
       <div id="metrics-banner" class="banner hidden">metrics-server not detected - usage panels degraded</div>
 
-      <div class="tree-head">Inventory</div>
+      <div class="tree-head">
+        <span>Inventory</span>
+        <span id="inv-summary" class="inv-summary"></span>
+      </div>
+      <div id="inv-controls"></div>
       <div id="tree"></div>
       <div id="bulkbar" class="hidden"></div>
     </aside>
@@ -44,14 +49,13 @@
     <main id="main">
       <div id="tabbar"></div>
       <div id="bcast-bar" class="hidden">
-        <span class="bcast-tag">📡 Broadcast</span>
+        <span class="bcast-tag">Broadcast</span>
         <input id="bcast-input" placeholder="type a command - Enter sends it to every terminal with Broadcast checked">
       </div>
       <div id="panels">
         <div id="welcome">
           <div class="hero">
-            <div class="hero-mark">⬢</div>
-            <h1>TifEra</h1>
+              <h1>TifEra</h1>
             <p class="hero-sub">In-cluster Kubernetes operations console</p>
           </div>
 
@@ -59,13 +63,13 @@
 
           <div class="dash-lower">
             <div class="dash-card trust">
-              <div class="dash-card-title">🔓 Trust model</div>
+              <div class="dash-card-title">Trust model</div>
               <p>Anyone who can reach this page holds the full power of TifEra's
                  ServiceAccount. Access control is <b>network reachability</b> -
                  no accounts, no login, by design.</p>
             </div>
             <div class="dash-card">
-              <div class="dash-card-title">⌨ Getting started</div>
+              <div class="dash-card-title">Getting started</div>
               <ul class="dash-hints">
                 <li>Click a container in the tree to open a <b>shell</b>.</li>
                 <li>Press <kbd>Ctrl K</kbd> to search pods & jump anywhere.</li>

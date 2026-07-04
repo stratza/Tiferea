@@ -5,8 +5,8 @@ description: >-
   shells, file transfer, logs, metrics and topology through the Kubernetes
   API, with no agents, no kubeconfig and (by design) no console auth.
 type: application
-version: 0.1.1
-appVersion: "0.1.1"
+version: 0.1.2
+appVersion: "0.1.2"
 kubeVersion: ">=1.27.0-0"
 home: https://github.com/stratza/tiferea
 sources:
