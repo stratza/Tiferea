@@ -1,5 +1,5 @@
 // TifEra console bootstrap: identity, events connection, sidebar wiring,
-// theme, RBAC/trust banners, broadcast-input bar, keyboard shortcuts.
+// theme, RBAC/trust banners, broadcast bar, status bar, command palette.
 
 import { $, clientLabel, el, promptNameOnce, setClientName, toast } from './util.js';
 import { connect, on, state } from './state.js';
@@ -8,6 +8,8 @@ import { broadcastLine, refreshThemes } from './terminal.js';
 import { openMetrics } from './metricsview.js';
 import { openTopology } from './topologyview.js';
 import { openActions, openEventsFeed, openSnippets } from './toolsview.js';
+import { initDashboard } from './dashboard.js';
+import { initPalette, openPalette } from './palette.js';
 
 // -- theme -------------------------------------------------------------
 
@@ -47,15 +49,9 @@ for (const btn of document.querySelectorAll('#global-tabs [data-open]')) {
 }
 
 $('#filter').addEventListener('input', (e) => tree.setFilter(e.target.value));
-document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
-    $('#filter').focus();
-    $('#filter').select();
-  }
-});
+$('#search-trigger').addEventListener('click', openPalette);
 
-// -- broadcast-input bar ---------------------------------------------------
+// -- broadcast bar ---------------------------------------------------------
 
 $('#bcast-toggle').addEventListener('click', () => {
   const bar = $('#bcast-bar');
@@ -69,13 +65,46 @@ $('#bcast-input').addEventListener('keydown', (e) => {
   }
 });
 
-// -- status surfaces -----------------------------------------------------------------
+// -- status bar ----------------------------------------------------------------------
+
+function podBad(p) {
+  const r = (p.reason || p.phase || '').toLowerCase();
+  if (p.phase === 'Failed' || r.includes('crash') || r.includes('error') ||
+      r.includes('backoff')) return true;
+  if (p.phase === 'Running' && !p.containers.every((c) => c.ready)) return true;
+  return false;
+}
+
+function updateCounts() {
+  const pods = [...state.pods.values()];
+  const running = pods.filter(
+    (p) => p.phase === 'Running' && p.containers.every((c) => c.ready)).length;
+  const issues = pods.filter(podBad).length;
+  $('#sb-counts').replaceChildren(
+    el('span', { class: 'sb-metric', title: 'pods' }, el('span', { class: 'sb-dot ok' }), `${running} running`),
+    el('span', { class: `sb-metric ${issues ? 'warn' : ''}`, title: 'pods with issues' },
+       el('span', { class: `sb-dot ${issues ? 'bad' : 'muted'}` }), `${issues} issues`),
+    el('span', { class: 'sb-metric', title: 'total pods' }, `${pods.length} pods`));
+  let sessions = 0;
+  for (const list of state.presence.values()) sessions += list.length;
+  $('#sb-sessions').textContent = sessions ? `⌨ ${sessions} session${sessions > 1 ? 's' : ''}` : '';
+}
 
 on('hello', () => {
   const id = state.identity;
-  $('#identity').textContent =
-    `${id.namespace}/${id.pod} @ ${id.node || '?'} · v${id.version} · no auth: network access = full control`;
+  $('#sb-cluster').textContent = `${id.namespace}/${id.pod} @ ${id.node || '?'}`;
+  $('#sb-version').textContent = `v${id.version}`;
+  updateCounts();
 });
+on('pods', updateCounts);
+on('presence', updateCounts);
+
+function updateConn() {
+  const ok = state.connected;
+  $('#sb-conn').classList.toggle('online', ok);
+  $('#sb-conn').classList.toggle('offline', !ok);
+  $('#sb-conn-text').textContent = ok ? 'connected' : 'reconnecting…';
+}
 
 on('rbac', () => {
   const banner = $('#rbac-banner');
@@ -95,8 +124,14 @@ on('metrics', () => {
 
 on('conn', () => {
   document.body.classList.toggle('disconnected', !state.connected);
+  updateConn();
   if (!state.connected) toast('events connection lost - reconnecting…', 'warn', 2500);
 });
 
+// -- boot ------------------------------------------------------------------------------
+
+updateConn();
 tree.init();
+initDashboard();
+initPalette();
 connect();
