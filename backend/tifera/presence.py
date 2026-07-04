@@ -28,8 +28,22 @@ class PresenceRegistry:
                 "clientId": client_id,
                 "clientName": client_name,
                 "startedAt": time.time(),
+                "shared": False,
+                "participants": 1,
             }
         self._broadcast(target_key(namespace, pod, container))
+
+    def set_shared(self, session_id: str, shared: bool, participants: int) -> None:
+        """Mark a session as shared (collaborative) and how many consoles are
+        attached, so every client can see and join it."""
+        with self._lock:
+            entry = self._sessions.get(session_id)
+            if entry is None:
+                return
+            entry["shared"] = shared
+            entry["participants"] = participants
+            target = entry["target"]
+        self._broadcast(target)
 
     def remove(self, session_id: str) -> None:
         with self._lock:

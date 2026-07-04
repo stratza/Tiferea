@@ -7,7 +7,7 @@
 <br/>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/stratza/tiferea/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI&labelColor=1a1a1a)](https://github.com/stratza/tiferea/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.0-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.1-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-%E2%89%A5%201.27-4a4a4a?style=for-the-badge&logo=kubernetes&logoColor=white&labelColor=1a1a1a)](deploy/)
 [![Python](https://img.shields.io/badge/python-3.12-4a4a4a?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a1a)](backend/)
 [![License](https://img.shields.io/badge/license-MIT-9e9e9e?style=for-the-badge&labelColor=1a1a1a)](LICENSE)
@@ -38,14 +38,15 @@
 
 | | Area | What you get |
 |:---:|:---|:---|
-| ⌨ | **Shell** | One click on any container → full PTY (xterm.js), tabs, `bash`→`sh`→`ash` auto-detect, reconnect-on-drop with scrollback replay, ephemeral debug container for shell-less images |
+| ⌨ | **Shell** | One click on any container → full PTY (xterm.js), tabs and split-pane tiling, `bash`→`sh`→`ash` auto-detect, reconnect-on-drop with scrollback replay, ephemeral debug container for shell-less images |
 | 📂 | **Files** | Remote browser rooted at `/`, drag-and-drop chunked uploads, file/dir (tar.gz) downloads, small-file editor, rename/delete/chmod/mkdir, bookmarks |
 | 📜 | **Logs** | Live follow with pause/regex filter/level highlighting, previous-instance logs, merged multi-container view, downloads |
 | 📊 | **Metrics** | Per-container CPU/memory with 60-min sparklines, usage vs requests/limits, node allocatable-vs-used, opt-in `df` disk sampling; degrades gracefully without metrics-server |
-| 🕸 | **Topology** | Services → Pods, workloads → Pods, optional ConfigMap/Secret mount edges, unhealthy paths highlighted, click-through to details |
-| 👥 | **Multi-operator** | Isolated sessions per browser, presence badges, mutual "someone else has a shell here" warnings, edit-conflict courtesy checks |
+| 🕸 | **Topology** | Services → Pods, workloads → Pods, optional ConfigMap/Secret mount edges, unhealthy paths highlighted, drag-to-pan map, click-through to details |
+| 👥 | **Multi-operator** | Isolated sessions per browser, presence badges, mutual "someone else has a shell here" warnings, **collaborative shared sessions** (join a colleague's live shell), edit-conflict courtesy checks |
+| 🔍 | **Command palette** | `Ctrl+K` to search pods, containers, Services, Deployments, ConfigMaps and Secrets (names only), or jump to any view |
 | 🧾 | **Accountability** | Action log (shell/file/quick actions with client identity + IP, JSONL export), optional terminal session recording (.cast files) |
-| 🛠 | **Tools** | Pod restart with self-protection for TifEra's own pod, YAML view, events feed, command snippets, broadcast input to multiple terminals |
+| 🛠 | **Tools** | Pod restart with self-protection for TifEra's own pod, bulk multi-select actions, YAML/describe view (Secret values masked), events feed, command snippets, broadcast input to multiple terminals |
 
 ---
 
@@ -74,8 +75,8 @@ The frontend is deliberately dependency-free: vanilla ES modules with vendored x
 
 ```sh
 # 1. Build the image and make it available to your cluster
-docker build -t tifera:0.1.0 backend
-# (kind: `kind load docker-image tifera:0.1.0`, k3d: `k3d image import tifera:0.1.0`)
+docker build -t tifera:0.1.1 backend
+# (kind: `kind load docker-image tifera:0.1.1`, k3d: `k3d image import tifera:0.1.1`)
 
 # 2. Deploy - plain manifest…
 kubectl apply -f deploy/tifera.yaml
@@ -88,7 +89,7 @@ kubectl -n tifera port-forward svc/tifera 8080:80
 ```
 
 > [!NOTE]
-> **v0.1.0** - first working release, deployed and exercised end-to-end on a single-node k3s v1.36 cluster. See the [CHANGELOG](CHANGELOG.md) for what's inside, including the war stories.
+> **v0.1.1** - collaborative shared sessions, split-pane tiling, a command palette, a live dashboard and a monochrome UI, on top of the first working release. Deployed and exercised end-to-end on a single-node k3s v1.36 cluster. See the [CHANGELOG](CHANGELOG.md) for the full list, including the war stories.
 
 <details>
 <summary><b>📁 Repository layout</b></summary>

@@ -83,6 +83,11 @@ def verify_or_die() -> None:
 REQUIRED_ACCESS: list[tuple[str, str, str, str]] = [
     *[(v, "", r, "") for v in ("get", "list", "watch")
       for r in ("pods", "services", "endpoints", "events", "nodes", "namespaces")],
+    # Command-palette search + describe (feature 5).
+    *[(v, "", r, "") for v in ("get", "list")
+      for r in ("configmaps", "secrets")],
+    *[(v, "apps", r, "") for v in ("get", "list")
+      for r in ("deployments", "statefulsets", "daemonsets", "replicasets")],
     # WebSocket clients connect exec/portforward with GET, SPDY with POST -
     # checking only "create" once hid a 403 on every exec-based feature.
     ("get", "", "pods", "exec"),

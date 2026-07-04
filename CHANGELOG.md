@@ -6,11 +6,62 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-04
+
+Collaboration, a command palette, split panes, a live dashboard, and a
+monochrome UI - plus a batch of fixes found by running the app on a real
+cluster.
+
+### Added
+- **Collaborative shared sessions**: a session owner can share their shell;
+  other operators join the same PTY from the tree (or a broadcast toast) and
+  everyone connected sees the output and can type (tmux-style shared
+  control). Joins and shares are recorded in the action log.
+- **Split-pane tiling**: the panel area can show 1, 2 or 4 tabs at once in a
+  grid; click a pane to focus it. Controls appear only with 2+ tabs and
+  collapse back to plain tabs automatically.
+- **Command palette** (`Ctrl+K`): fuzzy search across pods and containers,
+  plus Services, Deployments, StatefulSets, DaemonSets, ConfigMaps and
+  Secrets (names only), and jump-to-view commands. Selecting a resource
+  opens a read-only YAML view with Secret values masked.
+- **Live dashboard** on the welcome screen: animated cluster stat cards
+  (namespaces, pods, running, issues, nodes, sessions) fed by the event
+  stream.
+- **IDE-style status bar**: connection state, cluster identity, live pod
+  counts, active session count, editable display name and version.
+- **Bulk actions**: multi-select pods in the tree to restart them (with the
+  self-pod guard) or open shells into all of them at once.
+- **Topology map navigation**: drag-to-pan, wheel-zoom toward the cursor,
+  double-click / "fit" to reset.
+- Helm chart (`deploy/helm/tifera`) as an alternative to the plain manifest.
+
 ### Changed
-- Added a Helm chart (`deploy/helm/tifera`) as an alternative to the plain
-  manifest.
+- **Monochrome grey/white redesign** of the entire console (both themes):
+  new surfaces, tabs, scrollbars, focus rings and typography; semantic
+  status colours kept but desaturated.
+- "MultiExec" broadcast input renamed to **Broadcast**.
+- RBAC widened with `get`/`list` on ConfigMaps, Secrets and the `apps`
+  workloads to power palette search + describe (Secret *values* are never
+  exposed - masked server-side). Reflected in the manifest, Helm chart and
+  the startup self-check.
 - Documentation restructured around README/CONTRIBUTING/SECURITY; internal
-  spec references removed from code and docs.
+  spec references, personal information and tool name-drops removed.
+
+### Fixed
+- **All open tabs rendered at once** - a CSS cascade bug where component
+  roots (`.term-root`, `.fs-root`, …) set `display:flex` and outranked the
+  panel-hide rule; masked by the old absolute stacking, exposed by the new
+  split grid. Non-visible panes are now hidden with an ID-scoped rule.
+- **File transfer/browsing on distroless containers** returned a raw OCI
+  runtime error; now detects shell-less targets and shows a clear message
+  pointing to the ephemeral debug container.
+- **Ephemeral debug containers on `runAsNonRoot` pods** (e.g. cert-manager)
+  failed with `CreateContainerConfigError`; TifEra now matches the pod's
+  security context and fails fast with the real reason otherwise.
+- **Black screen after closing the last tab** - the welcome panel was
+  destroyed on first tab open instead of hidden; it now returns.
+- Log viewer strips ANSI escape codes; duplicate tabs focus-and-blink the
+  existing one; a banner shows when the console loses its backend.
 
 ## [0.1.0] - 2026-07-03
 
@@ -79,5 +130,6 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/stratza/tiferea/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/stratza/tiferea/releases/tag/v0.1.0

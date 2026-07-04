@@ -23,7 +23,8 @@ from kubernetes.client import ApiClient
 
 from . import __version__
 from . import config as cfg
-from . import debug, fsops, topology
+from . import debug, fsops, resources, topology
+from .resources import resource_index
 from .actionlog import actionlog
 from .broadcast import broadcaster
 from .incluster import rbac_self_check
@@ -196,6 +197,29 @@ def api_topology(namespace: str = "", mounts: int = 0):
     except k8s.ApiException as exc:
         raise HTTPException(status_code=502,
                             detail=f"K8s API error: {exc.reason} (HTTP {exc.status})")
+
+
+@app.get("/api/resources")
+def api_resources():
+    """Cached name index of non-pod resources for the command palette."""
+    return {"resources": resource_index.list()}
+
+
+@app.get("/api/describe/{kind}/{namespace}/{name}")
+def api_describe(kind: str, namespace: str, name: str):
+    """Read-only YAML for a resource (Secret values masked)."""
+    try:
+        obj = resources.read_object(kind, namespace, name)
+    except k8s.ApiException as exc:
+        raise HTTPException(status_code=404 if exc.status == 404 else 502,
+                            detail=exc.reason)
+    if obj is None:
+        raise HTTPException(status_code=400, detail=f"unsupported kind: {kind}")
+    data = ApiClient().sanitize_for_serialization(obj)
+    data.get("metadata", {}).pop("managedFields", None)
+    data = resources.mask_secret(data)
+    return PlainTextResponse(yaml.safe_dump(data, sort_keys=False),
+                             media_type="text/yaml")
 
 
 @app.get("/api/events")
@@ -501,9 +525,10 @@ async def ws_events(ws: WebSocket):
 @app.websocket("/ws/terminal/{namespace}/{pod}/{container}")
 async def ws_terminal(ws: WebSocket, namespace: str, pod: str, container: str):
     """Binary frames carry terminal bytes both ways; text frames carry JSON
-    control messages: in {"type":"resize"|"close"}, out {"type":"ready"|
-    "error"|"exit"}. Query: clientId (required), clientName, shell,
-    sessionId (reattach within the reconnect grace)."""
+    control messages: in {"type":"resize"|"close"|"share"}, out {"type":
+    "ready"|"error"|"exit"}. Query: clientId (required), clientName, shell,
+    sessionId (reattach within the reconnect grace), join (attach to a
+    shared session owned by anyone, feature 1)."""
     if not _origin_ok(ws):
         await ws.close(code=4403)
         return
@@ -516,7 +541,22 @@ async def ws_terminal(ws: WebSocket, namespace: str, pod: str, container: str):
         await ws.close()
         return
 
-    if reattach_id := p.get("sessionId"):
+    joined = False
+    if join_id := p.get("join"):
+        session = sessions.get_joinable(join_id, client_id)
+        if session is None:
+            await ws.send_json({"type": "error",
+                                "error": "that shared session is no longer available"})
+            await ws.close()
+            return
+        joined = session.client_id != client_id
+        if joined:
+            actionlog.record(
+                "shell_join", client_id=client_id, client_name=p.get("clientName", ""),
+                client_ip=ws.client.host if ws.client else "",
+                namespace=session.namespace, pod=session.pod, container=session.container,
+                detail=json.dumps({"sessionId": session.id, "owner": session.client_name}))
+    elif reattach_id := p.get("sessionId"):
         session = sessions.get(reattach_id, client_id)
         if session is None:
             await ws.send_json({"type": "error",
@@ -548,6 +588,9 @@ async def ws_terminal(ws: WebSocket, namespace: str, pod: str, container: str):
         "shell": session.shell,
         "target": session.target,
         "others": presence.others_on(session.target, client_id),
+        "shared": session.shared,
+        "joined": joined,
+        "owner": session.client_name or session.client_id[:6],
     })
 
     loop = asyncio.get_running_loop()
@@ -556,7 +599,7 @@ async def ws_terminal(ws: WebSocket, namespace: str, pod: str, container: str):
     def sink(chunk: bytes | None) -> None:
         loop.call_soon_threadsafe(q.put_nowait, chunk)
 
-    replay = session.attach(sink)
+    handle, replay = session.attach(sink)
     if replay:
         await ws.send_bytes(replay)
 
@@ -587,6 +630,9 @@ async def ws_terminal(ws: WebSocket, namespace: str, pod: str, container: str):
                         session.resize(int(ctrl["cols"]), int(ctrl["rows"]))
                     elif ctrl.get("type") == "close":
                         session.close("closed by client")
+                    elif ctrl.get("type") == "share" and not joined:
+                        # Only the owner may toggle sharing (feature 1).
+                        session.set_shared(bool(ctrl.get("on")))
                 except (ValueError, KeyError, TypeError):
                     continue
     except WebSocketDisconnect:
@@ -594,7 +640,7 @@ async def ws_terminal(ws: WebSocket, namespace: str, pod: str, container: str):
     finally:
         forward.cancel()
         if not session.closed.is_set():
-            session.detach()  # keep the PTY for reconnect
+            session.detach(handle)  # keep the PTY for reconnect / collaborators
 
 
 # -- /ws/logs: live-follow and previous-instance logs ----------------------

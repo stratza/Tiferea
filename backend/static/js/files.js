@@ -213,7 +213,18 @@ export function openFiles(namespace, pod, container, startPath = '/') {
         (a.type === 'dir' ? 0 : 1) - (b.type === 'dir' ? 0 : 1) || a.name.localeCompare(b.name));
       tbody.replaceChildren(...entries.map(row));
     } catch (e) {
-      toast(`cannot list ${p}: ${e.message}`, 'error');
+      // Distroless/scratch targets have no shell; show a persistent notice
+      // rather than a table that just looks empty.
+      const shellless = /distroless|no shell/i.test(e.message);
+      tbody.replaceChildren(el('tr', {}, el('td', { colspan: '6' },
+        el('div', { class: `fs-notice ${shellless ? 'warn' : 'error'}` },
+          shellless
+            ? '⚠ This container has no shell or core utilities (distroless / '
+              + 'scratch). File browsing and transfer aren\'t available here - '
+              + 'open a terminal and attach an ephemeral debug container to '
+              + 'inspect its filesystem.'
+            : `cannot list ${p}: ${e.message}`))));
+      if (!shellless) toast(`cannot list ${p}: ${e.message}`, 'error');
     }
   }
 

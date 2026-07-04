@@ -1,10 +1,11 @@
 // Command palette (Ctrl+K): fuzzy-ish search across pods & containers plus
 // jump-to-view commands. Keyboard-driven, overlay, closes on Esc / click-out.
 
-import { $, el } from './util.js';
+import { $, api, el } from './util.js';
 import { state } from './state.js';
 import { openTerminal } from './terminal.js';
 import { openPod } from './podpanel.js';
+import { openDescribe } from './describe.js';
 import { openMetrics } from './metricsview.js';
 import { openTopology } from './topologyview.js';
 import { openActions, openEventsFeed, openSnippets } from './toolsview.js';
@@ -12,6 +13,20 @@ import { openActions, openEventsFeed, openSnippets } from './toolsview.js';
 const MAX = 40;
 let items = [];
 let sel = 0;
+
+// Non-pod resource name index (feature 5), refreshed lazily on palette open.
+let resources = [];
+let resourcesAt = 0;
+const KIND_ICON = { Service: '🔀', ConfigMap: '🗄', Secret: '🔑',
+                    Deployment: '📦', StatefulSet: '📦', DaemonSet: '📦' };
+
+async function refreshResources() {
+  if (Date.now() - resourcesAt < 15000 && resources.length) return;
+  try {
+    resources = (await api('/api/resources')).resources || [];
+    resourcesAt = Date.now();
+  } catch { /* RBAC or transient - palette still works for pods/views */ }
+}
 
 function views() {
   return [
@@ -49,6 +64,17 @@ function build(query) {
         out.push({
           icon: '▣', title: p.name, sub: `pod · ${p.namespace}`,
           run: () => openPod(p),
+        });
+      }
+    }
+    for (const r of resources) {
+      if (out.length > MAX) break;
+      if (`${r.namespace}/${r.name}`.toLowerCase().includes(q) ||
+          r.kind.toLowerCase().includes(q)) {
+        out.push({
+          icon: KIND_ICON[r.kind] || '📄',
+          title: r.name, sub: `${r.kind} · ${r.namespace}`,
+          run: () => openDescribe(r.kind, r.namespace, r.name),
         });
       }
     }
@@ -97,6 +123,9 @@ export function openPalette() {
   input.value = '';
   refresh();
   input.focus();
+  refreshResources().then(() => {
+    if (!p.classList.contains('hidden')) refresh();
+  });
 }
 
 export function close() {

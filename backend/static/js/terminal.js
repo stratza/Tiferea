@@ -1,6 +1,6 @@
-// Interactive shell tabs (xterm.js), with reconnect-on-drop,
-// mutual same-container warnings, broadcast input and
-// ephemeral debug container fallback.
+// Interactive shell tabs (xterm.js): reconnect-on-drop, same-container
+// warnings, broadcast input, ephemeral debug fallback, and collaborative
+// shared sessions (feature 1).
 
 import { $, api, client, el, qsClient, sessionLabel, toast, wsUrl } from './util.js';
 import { on } from './state.js';
@@ -22,7 +22,6 @@ export function refreshThemes() {
   for (const h of handles.values()) h.term.options.theme = termTheme();
 }
 
-// Send a line to every terminal whose Broadcast box is checked.
 export function broadcastLine(text) {
   let n = 0;
   for (const h of handles.values()) {
@@ -39,6 +38,11 @@ export function pasteToActive(text) {
   else toast('no active terminal tab', 'warn');
 }
 
+// Join a shared session someone else owns (feature 1).
+export function joinSession(namespace, pod, container, sessionId, owner) {
+  openTerminal(namespace, pod, container, { join: sessionId, owner, fresh: true });
+}
+
 let snippetsCache = null;
 async function loadSnippets() {
   try { snippetsCache = (await api('/api/snippets')).snippets; }
@@ -49,11 +53,10 @@ export function invalidateSnippets() { snippetsCache = null; }
 
 export function openTerminal(namespace, pod, container, opts = {}) {
   const target = `${namespace}/${pod}/${container}`;
-  // One tab per container by default: clicking again focuses + blinks it.
-  // The ⊕ toolbar button opens a deliberate extra session; presence
-  // badges still count both.
-  const tabId = opts.fresh ? `term-${target}#${++seq}` : `term-${target}`;
-  if (!opts.fresh && focusOrBlink(tabId)) return;
+  const joining = !!opts.join;
+  // One tab per container by default; joins and ⊕ open extra sessions.
+  const tabId = (opts.fresh || joining) ? `term-${target}#${++seq}` : `term-${target}`;
+  if (!opts.fresh && !joining && focusOrBlink(tabId)) return;
   const fontKey = 'tifera.termFontSize';
   let fontSize = parseInt(localStorage.getItem(fontKey) || '14', 10);
 
@@ -80,17 +83,35 @@ export function openTerminal(namespace, pod, container, opts = {}) {
   });
 
   const shellLabel = el('span', { class: 'muted', text: opts.shell || '…' });
+
+  // Owner-only share toggle; collaborators get a leave button instead.
+  const shareBtn = el('button', { class: 'share-btn', title: 'share this session with other operators',
+    onclick: () => { shared = !shared; sendCtrl({ type: 'share', on: shared }); renderBanner(); updateShareBtn(); } },
+    '⇄ share');
+  function updateShareBtn() {
+    shareBtn.textContent = shared ? '⇄ sharing' : '⇄ share';
+    shareBtn.classList.toggle('active', shared);
+  }
+
+  const ownerCtrls = [
+    el('button', { text: '⊕', title: 'open another session in this container',
+                   onclick: () => openTerminal(namespace, pod, container, { ...opts, join: null, fresh: true }) }),
+    shareBtn,
+    el('button', { text: 'kill', class: 'danger', title: 'terminate this session',
+                   onclick: () => { deliberate = true; sendCtrl({ type: 'close' }); } }),
+  ];
+  const joinCtrls = [
+    el('button', { text: 'leave', class: 'danger', title: 'leave this shared session',
+                   onclick: () => { deliberate = true; closeTab(tabId); } }),
+  ];
+
   const toolbar = el('div', { class: 'term-toolbar' },
     el('span', { class: 'target-label', text: target }), shellLabel,
-    el('button', { text: '⊕', title: 'open another session in this container',
-                   onclick: () => openTerminal(namespace, pod, container,
-                                               { ...opts, fresh: true }) }),
     el('label', { class: 'bcast-label', title: 'broadcast-input target' }, bcast, 'Broadcast'),
     snippetSel, searchInput,
     el('button', { text: 'A−', title: 'smaller font', onclick: () => setFont(fontSize - 1) }),
     el('button', { text: 'A+', title: 'larger font', onclick: () => setFont(fontSize + 1) }),
-    el('button', { text: 'kill', class: 'danger', title: 'terminate this session',
-                   onclick: () => { deliberate = true; sendCtrl({ type: 'close' }); } }));
+    ...(joining ? joinCtrls : ownerCtrls));
 
   const termHost = el('div', { class: 'term-host' });
   const root = el('div', { class: 'term-root' }, toolbar, banner, termHost);
@@ -109,11 +130,14 @@ export function openTerminal(namespace, pod, container, opts = {}) {
   term.loadAddon(search);
 
   let ws = null;
-  let sessionId = null;
+  let sessionId = opts.join || null;
   let exited = false;
   let deliberate = false;
   let reconnectAttempts = 0;
   let knownOthers = new Set();
+  let shared = false;
+  let participants = 1;
+  let others = [];
 
   function setFont(size) {
     fontSize = Math.min(28, Math.max(8, size));
@@ -141,15 +165,32 @@ export function openTerminal(namespace, pod, container, opts = {}) {
     statusLine(message || 'session ended');
   }
 
-  // Persistent banner naming other clients with shells here.
-  function updateBanner(others) {
-    if (!others.length) {
-      banner.classList.add('hidden');
+  // One banner conveys the most important state: join / sharing / co-tenant.
+  function renderBanner() {
+    banner.classList.remove('shared', 'joined');
+    if (joining) {
+      banner.classList.add('joined');
+      banner.textContent =
+        `🔗 joined ${opts.owner || 'a'}'s shared session · ${participants} connected · everyone here can type`;
+      banner.classList.remove('hidden');
       return;
     }
-    const names = [...new Set(others.map(sessionLabel))].join(', ');
-    banner.textContent = `⚠ ${names} also ${others.length > 1 ? 'have shells' : 'has a shell'} open in this container`;
-    banner.classList.remove('hidden');
+    if (shared) {
+      banner.classList.add('shared');
+      banner.replaceChildren(
+        `🔗 sharing this session · ${participants} connected · anyone who can reach TifEra can join and type `,
+        el('button', { class: 'link-btn', text: 'stop sharing',
+                       onclick: () => { shared = false; sendCtrl({ type: 'share', on: false }); renderBanner(); updateShareBtn(); } }));
+      banner.classList.remove('hidden');
+      return;
+    }
+    if (others.length) {
+      const names = [...new Set(others.map(sessionLabel))].join(', ');
+      banner.textContent = `⚠ ${names} also ${others.length > 1 ? 'have shells' : 'has a shell'} open in this container`;
+      banner.classList.remove('hidden');
+      return;
+    }
+    banner.classList.add('hidden');
   }
 
   function offerDebugContainer(error) {
@@ -177,7 +218,8 @@ export function openTerminal(namespace, pod, container, opts = {}) {
   function connect(reattach) {
     let url = `/ws/terminal/${namespace}/${pod}/${container}?${qsClient()}`;
     if (opts.shell) url += `&shell=${encodeURIComponent(opts.shell)}`;
-    if (reattach && sessionId) url += `&sessionId=${sessionId}`;
+    if (joining) url += `&join=${sessionId}`;
+    else if (reattach && sessionId) url += `&sessionId=${sessionId}`;
     ws = new WebSocket(wsUrl(url));
     ws.binaryType = 'arraybuffer';
     ws.onmessage = (e) => {
@@ -187,14 +229,16 @@ export function openTerminal(namespace, pod, container, opts = {}) {
           sessionId = m.sessionId;
           reconnectAttempts = 0;
           shellLabel.textContent = m.shell;
+          shared = !!m.shared;
+          updateShareBtn();
           if (reattach) statusLine('reconnected');
-          const others = m.others || [];
+          if (joining && !reattach) statusLine(`joined ${m.owner || 'shared'} session`);
+          others = (m.others || []);
           knownOthers = new Set(others.map((s) => s.sessionId));
-          if (others.length && !reattach) {
-            // Joining-side warning.
+          if (others.length && !reattach && !joining) {
             toast(`${[...new Set(others.map(sessionLabel))].join(', ')} already has a shell open in this container`, 'warn');
           }
-          updateBanner(others);
+          renderBanner();
         } else if (m.type === 'exit') {
           markExited(`session ended: ${m.message}`);
         } else if (m.type === 'error') {
@@ -221,25 +265,27 @@ export function openTerminal(namespace, pod, container, opts = {}) {
   term.onResize(({ cols, rows }) => sendCtrl({ type: 'resize', cols, rows }));
 
   const resizeObserver = new ResizeObserver(() => {
-    if (root.classList.contains('active')) fit.fit();
+    if (root.classList.contains('shown')) fit.fit();
   });
 
-  // Live presence for this target: warn when another client joins/leaves.
+  // Live presence: co-tenant warnings, and participant counts for our own
+  // shared/joined session.
   on('presence', (m) => {
     if (m.target !== target || exited) return;
-    const others = (m.sessions || []).filter(
-      (s) => s.clientId !== client.id);
+    const sessions = m.sessions || [];
+    const mine = sessions.find((s) => s.sessionId === sessionId);
+    if (mine) participants = mine.participants || 1;
+    others = sessions.filter((s) => s.clientId !== client.id && s.sessionId !== sessionId);
     const ids = new Set(others.map((s) => s.sessionId));
-    for (const s of others) {
-      if (!knownOthers.has(s.sessionId)) {
-        toast(`${sessionLabel(s)} just opened a shell in ${target}`, 'warn');
+    if (!joining) {
+      for (const s of others) {
+        if (!knownOthers.has(s.sessionId)) {
+          toast(`${sessionLabel(s)} just opened a shell in ${target}`, 'warn');
+        }
       }
     }
-    for (const id of knownOthers) {
-      if (!ids.has(id)) toast(`a shell of another client on ${target} closed`, 'info', 3000);
-    }
     knownOthers = ids;
-    updateBanner(others);
+    renderBanner();
   });
 
   const handle = {
@@ -250,14 +296,15 @@ export function openTerminal(namespace, pod, container, opts = {}) {
 
   addTab({
     id: tabId,
-    title: `⌨ ${container}`,
+    title: `${joining ? '🔗' : '⌨'} ${container}`,
     kind: 'terminal',
     el: root,
     onShow: () => { fit.fit(); term.focus(); },
     onClose: () => {
       deliberate = true;
-      exited = true;   // stop presence toasts from the stale handler
-      sendCtrl({ type: 'close' });
+      exited = true;
+      // A collaborator leaving just detaches; the owner closing kills it.
+      if (!joining) sendCtrl({ type: 'close' });
       try { ws?.close(); } catch { /* already closed */ }
       resizeObserver.disconnect();
       handles.delete(tabId);

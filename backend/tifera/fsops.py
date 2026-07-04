@@ -22,9 +22,27 @@ log = logging.getLogger("tifera.fsops")
 
 _WRITE_CHUNK = 256 * 1024
 
+_NO_SHELL_HINT = (
+    "this container has no shell or core utilities - it looks distroless or "
+    "scratch. File browsing and transfer run commands (sh, ls, cat, tar) "
+    "inside the target, so they aren't available here. Open a terminal and "
+    "use the ephemeral debug container to inspect its filesystem instead.")
+
 
 class ExecError(RuntimeError):
     pass
+
+
+class NoShellError(ExecError):
+    """The target container ships no shell / coreutils (distroless/scratch)."""
+
+
+def _looks_shellless(text: str) -> bool:
+    low = text.lower()
+    return ("executable file not found" in low
+            or "exec format error" in low
+            or ('"sh"' in text and "not found" in low)
+            or ("no such file or directory" in low and "oci runtime exec" in low))
 
 
 def _connect(namespace: str, pod: str, container: str, argv: list[str], *,
@@ -92,8 +110,10 @@ def _check(namespace: str, pod: str, container: str, argv: list[str],
     code, out, err = run(namespace, pod, container, argv,
                          stdin_bytes=stdin_bytes, timeout=timeout)
     if code != 0:
-        raise ExecError(err.decode("utf-8", "replace").strip()
-                        or f"{argv[0]} failed (exit {code})")
+        text = err.decode("utf-8", "replace").strip()
+        if _looks_shellless(text):
+            raise NoShellError(_NO_SHELL_HINT)
+        raise ExecError(text or f"{argv[0]} failed (exit {code})")
     return out
 
 
@@ -158,8 +178,10 @@ def stat_mtime(namespace: str, pod: str, container: str, path: str) -> int | Non
 
 
 def exists(namespace: str, pod: str, container: str, path: str) -> bool:
-    code, _, _ = run(namespace, pod, container,
-                     ["sh", "-c", f"test -e {shlex.quote(path)}"], timeout=15)
+    code, _, err = run(namespace, pod, container,
+                       ["sh", "-c", f"test -e {shlex.quote(path)}"], timeout=15)
+    if code != 0 and _looks_shellless(err.decode("utf-8", "replace")):
+        raise NoShellError(_NO_SHELL_HINT)
     return code == 0
 
 

@@ -1,7 +1,7 @@
 // TifEra console bootstrap: identity, events connection, sidebar wiring,
 // theme, RBAC/trust banners, broadcast bar, status bar, command palette.
 
-import { $, clientLabel, el, promptNameOnce, setClientName, toast } from './util.js';
+import { $, client, clientLabel, el, promptNameOnce, setClientName, toast } from './util.js';
 import { connect, on, state } from './state.js';
 import * as tree from './tree.js';
 import { broadcastLine, refreshThemes } from './terminal.js';
@@ -98,6 +98,25 @@ on('hello', () => {
 });
 on('pods', updateCounts);
 on('presence', updateCounts);
+
+// Announce when another operator starts sharing a session (feature 1).
+const knownShared = new Set();
+on('presence', (m) => {
+  const shared = (m.sessions || []).filter((s) => s.shared && s.clientId !== client.id);
+  const ids = new Set(shared.map((s) => s.sessionId));
+  for (const s of shared) {
+    if (!knownShared.has(s.sessionId)) {
+      toast(`${s.clientName || s.clientId.slice(0, 6)} is sharing a shell in ${m.target} - `
+            + 'click 🔗 join in the tree to collaborate', 'info', 6000);
+    }
+  }
+  // Forget ended shares on this target so a future one re-announces.
+  for (const id of [...knownShared]) {
+    const stillHere = (m.sessions || []).some((s) => s.sessionId === id);
+    if (stillHere && !ids.has(id)) knownShared.delete(id);
+  }
+  ids.forEach((id) => knownShared.add(id));
+});
 
 function updateConn() {
   const ok = state.connected;

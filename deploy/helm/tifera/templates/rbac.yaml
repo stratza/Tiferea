@@ -18,6 +18,13 @@ rules:
   - apiGroups: [""]
     resources: ["pods", "services", "endpoints", "events", "nodes", "namespaces"]
     verbs: ["get", "list", "watch"]
+  # Command-palette search & describe (names only; Secret values are masked).
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list"]
   # WebSocket clients open exec/portforward with GET (verb "get");
   # SPDY clients like kubectl use POST (verb "create"). Both are needed.
   - apiGroups: [""]

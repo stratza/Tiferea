@@ -80,10 +80,11 @@ class Session:
         self.exit_message = ""
         self.closed = threading.Event()
         self.detached_at: float | None = time.time()  # no console attached yet
+        self.shared = False   # collaborative: other clients may join (feature 1)
         self._ws = ws
         self._send_lock = threading.Lock()
         self._buffer: deque[bytes] = deque(maxlen=cfg.SCROLLBACK_CHUNKS)
-        self._sink: Sink | None = None
+        self._sinks: dict[str, Sink] = {}   # attach handle -> console feed
         self._sink_lock = threading.Lock()
         self._thread = threading.Thread(target=self._pump, name=f"term-{self.id}", daemon=True)
         self._cast = None
@@ -101,22 +102,48 @@ class Session:
                 log.warning("session recording disabled for %s: %s", self.id, exc)
                 self._cast = None
 
-    # -- console attachment ---------------------------------------------
+    # -- console attachment (one owner + optional collaborators) ---------
 
-    def attach(self, sink: Sink) -> bytes:
-        """Register the console feed; returns scrollback to replay."""
+    def attach(self, sink: Sink) -> tuple[str, bytes]:
+        """Register a console feed; returns (handle, scrollback-to-replay).
+        A session may have several feeds at once when it is shared."""
+        handle = uuid.uuid4().hex[:12]
         with self._sink_lock:
-            self._sink = sink
+            self._sinks[handle] = sink
             self.detached_at = None
             replay = b"".join(self._buffer)
         if self.closed.is_set():
             sink(None)
-        return replay
+        elif self.shared:
+            self._announce_participants()
+        return handle, replay
 
-    def detach(self) -> None:
+    def detach(self, handle: str) -> None:
         with self._sink_lock:
-            self._sink = None
-            self.detached_at = time.time()
+            self._sinks.pop(handle, None)
+            empty = not self._sinks
+            if empty:
+                self.detached_at = time.time()
+        if self.shared and not self.closed.is_set():
+            self._announce_participants()
+
+    def participant_count(self) -> int:
+        with self._sink_lock:
+            return len(self._sinks)
+
+    def set_shared(self, on: bool) -> None:
+        """Owner toggles collaboration. Shared sessions can be joined by any
+        client and everyone attached can type (tmux-style shared control)."""
+        self.shared = on
+        self._announce_participants()
+        actionlog.record(
+            "shell_share" if on else "shell_unshare",
+            client_id=self.client_id, client_name=self.client_name,
+            client_ip=self.client_ip, namespace=self.namespace, pod=self.pod,
+            container=self.container, detail=json.dumps({"sessionId": self.id}))
+
+    def _announce_participants(self) -> None:
+        presence.set_shared(self.id, self.shared, self.participant_count())
 
     # -- browser -> PTY ---------------------------------------------------
 
@@ -181,7 +208,7 @@ class Session:
     def _emit(self, chunk: bytes) -> None:
         with self._sink_lock:
             self._buffer.append(chunk)
-            sink = self._sink
+            sinks = list(self._sinks.values())
         if self._cast:
             try:
                 self._cast.write(json.dumps(
@@ -189,7 +216,7 @@ class Session:
                      chunk.decode("utf-8", "replace")]) + "\n")
             except (OSError, ValueError):
                 pass
-        if sink:
+        for sink in sinks:
             sink(chunk)
 
     def _finalize(self) -> None:
@@ -207,8 +234,8 @@ class Session:
             detail=json.dumps({"sessionId": self.id, "reason": self.exit_message,
                                "durationSeconds": round(time.time() - self.created_at, 1)}))
         with self._sink_lock:
-            sink = self._sink
-        if sink:
+            sinks = list(self._sinks.values())
+        for sink in sinks:
             sink(None)
         sessions._discard(self.id)
         log.info("session %s closed (%s)", self.id, self.exit_message)
@@ -282,6 +309,17 @@ class SessionManager:
         if s is None or s.client_id != client_id or s.closed.is_set():
             return None
         return s
+
+    def get_joinable(self, session_id: str, client_id: str) -> Session | None:
+        """A session another client may attach to: the owner always may
+        (reconnect); everyone else only when the owner has shared it."""
+        with self._lock:
+            s = self._sessions.get(session_id)
+        if s is None or s.closed.is_set():
+            return None
+        if s.client_id == client_id or s.shared:
+            return s
+        return None
 
     def close_all(self, reason: str) -> None:
         """Graceful shutdown."""
