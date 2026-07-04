@@ -23,7 +23,7 @@ from kubernetes.client import ApiClient
 
 from . import __version__
 from . import config as cfg
-from . import debug, fsops, kubeshell, resources, topology
+from . import debug, fsops, kubeshell, recordings, resources, topology
 from .resources import resource_index
 from .actionlog import actionlog
 from .broadcast import broadcaster
@@ -211,7 +211,8 @@ def api_resources():
 
 @app.get("/api/describe/{kind}/{namespace}/{name}")
 def api_describe(kind: str, namespace: str, name: str):
-    """Read-only YAML for a resource (Secret values masked)."""
+    """Read-only YAML for a resource (Secret values masked). `editable`
+    tells the console whether YAML apply is offered for this kind."""
     try:
         obj = resources.read_object(kind, namespace, name)
     except k8s.ApiException as exc:
@@ -222,8 +223,65 @@ def api_describe(kind: str, namespace: str, name: str):
     data = ApiClient().sanitize_for_serialization(obj)
     data.get("metadata", {}).pop("managedFields", None)
     data = resources.mask_secret(data)
-    return PlainTextResponse(yaml.safe_dump(data, sort_keys=False),
-                             media_type="text/yaml")
+    return PlainTextResponse(
+        yaml.safe_dump(data, sort_keys=False), media_type="text/yaml",
+        headers={"X-Tifera-Editable": "1" if resources.writable(kind) else "0"})
+
+
+@app.put("/api/describe/{kind}/{namespace}/{name}")
+async def api_apply(kind: str, namespace: str, name: str, request: Request):
+    """Apply edited YAML (feature 5). Full replace via the update verb; bounded
+    by RBAC. Secrets/Pods are not editable here."""
+    if not resources.writable(kind):
+        raise HTTPException(status_code=400, detail=f"{kind} is not editable from the console")
+    raw = await request.body()
+    try:
+        obj = yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid YAML: {exc}")
+    if not isinstance(obj, dict) or "metadata" not in obj:
+        raise HTTPException(status_code=400, detail="YAML is not a Kubernetes object")
+    meta = obj.get("metadata") or {}
+    if meta.get("name") != name or (meta.get("namespace") or namespace) != namespace:
+        raise HTTPException(status_code=400,
+                            detail="name/namespace in the YAML must match the resource")
+    try:
+        result = await asyncio.to_thread(resources.replace_object, kind, namespace, name, obj)
+    except k8s.ApiException as exc:
+        status = 409 if exc.status == 409 else (403 if exc.status == 403 else 400)
+        raise HTTPException(status_code=status,
+                            detail=f"{exc.reason}: {(exc.body or '')[:400]}")
+    actionlog.record("resource_apply", namespace=namespace, container="",
+                     detail=json.dumps({"kind": kind, "name": name}),
+                     **_client_of(request))
+    version = (ApiClient().sanitize_for_serialization(result)
+               .get("metadata", {}).get("resourceVersion"))
+    return {"status": "applied", "resourceVersion": version}
+
+
+# -- session recordings (feature 1) -----------------------------------------
+
+@app.get("/api/recordings")
+def api_recordings():
+    return {"recordings": recordings.list_recordings(),
+            "recordingEnabled": cfg.RECORD_SESSIONS}
+
+
+@app.get("/api/recordings/{name}")
+def api_recording(name: str):
+    cast = recordings.read_recording(name)
+    if cast is None:
+        raise HTTPException(status_code=404, detail="recording not found")
+    return PlainTextResponse(cast, media_type="application/x-asciicast")
+
+
+@app.delete("/api/recordings/{name}")
+def api_recording_delete(name: str, request: Request):
+    if not recordings.delete_recording(name):
+        raise HTTPException(status_code=404, detail="recording not found")
+    actionlog.record("recording_delete", detail=json.dumps({"name": name}),
+                     **_client_of(request))
+    return {"status": "deleted"}
 
 
 @app.get("/api/events")

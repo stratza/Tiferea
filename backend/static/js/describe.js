@@ -1,29 +1,82 @@
-// Read-only YAML view for any resource the palette surfaces (feature 5).
-// Secret values arrive already masked from the backend.
+// YAML view for any resource the palette surfaces, with opt-in edit & apply
+// (feature 5). Secret values arrive masked and Secrets are not editable.
 
 import { api, el, toast } from './util.js';
 import { addTab, focusOrBlink } from './tabs.js';
 
+// Kinds the backend accepts a YAML apply for (mirrors resources._WRITERS).
+const EDITABLE = new Set(['Service', 'ConfigMap', 'Deployment', 'StatefulSet', 'DaemonSet']);
+
 export function openDescribe(kind, namespace, name) {
   const tabId = `describe-${kind}/${namespace}/${name}`;
   if (focusOrBlink(tabId)) return;
-  const body = el('pre', { class: 'yaml-box grow', text: 'loading…' });
-  const root = el('div', { class: 'describe-root' },
-    el('div', { class: 'term-toolbar' },
+  const url = `/api/describe/${kind}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`;
+  const editable = EDITABLE.has(kind);
+
+  const view = el('pre', { class: 'yaml-box grow', text: 'loading…' });
+  const editor = el('textarea', { class: 'editor-area hidden', spellcheck: 'false' });
+  const toolbar = el('div', { class: 'term-toolbar' },
+    el('span', { class: 'target-label', text: `${kind} · ${namespace}/${name}` }));
+  const root = el('div', { class: 'describe-root' }, toolbar, view, editor);
+
+  let editing = false;
+
+  function setToolbar() {
+    const btns = [el('button', { text: 'refresh', title: 'reload', onclick: load })];
+    if (editable && !editing) {
+      btns.push(el('button', { text: 'edit', title: 'edit & apply YAML', onclick: startEdit }));
+    } else if (editing) {
+      btns.push(
+        el('button', { text: 'apply', class: 'primary', title: 'apply the edited YAML', onclick: apply }),
+        el('button', { text: 'cancel', onclick: cancel }));
+    }
+    toolbar.replaceChildren(
       el('span', { class: 'target-label', text: `${kind} · ${namespace}/${name}` }),
-      el('button', { text: 'refresh', title: 'reload', onclick: load })),
-    body);
+      ...btns);
+  }
 
   async function load() {
     try {
-      body.textContent = await api(
-        `/api/describe/${kind}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`);
+      view.textContent = await api(url);
     } catch (e) {
-      body.textContent = `failed to describe ${kind}/${name}: ${e.message}`;
+      view.textContent = `failed to describe ${kind}/${name}: ${e.message}`;
       toast(`describe failed: ${e.message}`, 'error');
     }
   }
 
-  addTab({ id: tabId, title: `${name}`, kind: 'describe', el: root });
+  function startEdit() {
+    editing = true;
+    editor.value = view.textContent;
+    view.classList.add('hidden');
+    editor.classList.remove('hidden');
+    setToolbar();
+    editor.focus();
+  }
+
+  function cancel() {
+    editing = false;
+    editor.classList.add('hidden');
+    view.classList.remove('hidden');
+    setToolbar();
+  }
+
+  async function apply() {
+    try {
+      await api(url, { method: 'PUT', headers: { 'Content-Type': 'text/yaml' }, body: editor.value });
+      toast(`applied ${kind}/${name}`, 'info');
+      cancel();
+      load();
+    } catch (e) {
+      if (e.status === 409) {
+        toast('resource changed since you loaded it - refresh, re-edit, and re-apply', 'warn', 7000);
+      } else {
+        toast(`apply failed: ${e.message}`, 'error', 7000);
+      }
+    }
+  }
+
+  addTab({ id: tabId, title: `${name}`, kind: 'describe', el: root,
+           restore: { kind: 'describe', k: kind, ns: namespace, name } });
+  setToolbar();
   load();
 }

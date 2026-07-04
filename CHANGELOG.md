@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-04
+
+### Added
+- **Settings dialog** (gear button): theme, terminal font size (live-applied
+  to open terminals), display name, and **workspace persistence** - an opt-in
+  "restore open tabs on reload" that reopens the same views next visit
+  (terminals/kubectl return as fresh sessions).
+- **Resizable sidebar** - drag the edge; the width persists.
+- **YAML edit & apply**: the describe view can now edit and apply a
+  resource's YAML (Services, ConfigMaps, Deployments, StatefulSets,
+  DaemonSets). Secrets and Pods stay read-only. Gated by RBAC - a new
+  `update` verb on those kinds (Helm `rbac.allowApply`, on by default).
+- **Session-recording playback**: a Recordings view lists `.cast` files and
+  replays them in an xterm terminal with play/pause, restart, speed (1x-4x)
+  and click-to-seek. Recording itself stays off by default
+  (`TIFERA_RECORD_SESSIONS` / Helm `config.recordSessions`).
+
 ## [0.1.2] - 2026-07-04
 
 ### Added
@@ -157,7 +174,8 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/stratza/tiferea/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/stratza/tiferea/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/stratza/tiferea/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/stratza/tiferea/releases/tag/v0.1.0

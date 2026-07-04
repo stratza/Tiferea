@@ -10,6 +10,7 @@ import { openMetrics } from './metricsview.js';
 import { openTopology } from './topologyview.js';
 import { openActions, openEventsFeed, openSnippets } from './toolsview.js';
 import { openKubectl } from './kubectl.js';
+import { openRecordings } from './recordings.js';
 
 const MAX = 40;
 let items = [];
@@ -37,6 +38,7 @@ function views() {
     { icon: '', title: 'Events', sub: 'view', run: openEventsFeed },
     { icon: '', title: 'Actions', sub: 'action log', run: openActions },
     { icon: '', title: 'Snippets', sub: 'view', run: openSnippets },
+    { icon: '', title: 'Recordings', sub: 'session playback', run: openRecordings },
   ];
 }
 

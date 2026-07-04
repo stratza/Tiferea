@@ -25,6 +25,15 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
     verbs: ["get", "list"]
+  {{- if .Values.rbac.allowApply }}
+  # YAML apply / edit from the console (update verb).
+  - apiGroups: [""]
+    resources: ["configmaps", "services"]
+    verbs: ["update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["update"]
+  {{- end }}
   # WebSocket clients open exec/portforward with GET (verb "get");
   # SPDY clients like kubectl use POST (verb "create"). Both are needed.
   - apiGroups: [""]

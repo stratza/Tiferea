@@ -83,11 +83,15 @@ def verify_or_die() -> None:
 REQUIRED_ACCESS: list[tuple[str, str, str, str]] = [
     *[(v, "", r, "") for v in ("get", "list", "watch")
       for r in ("pods", "services", "endpoints", "events", "nodes", "namespaces")],
-    # Command-palette search + describe (feature 5).
+    # Command-palette search + describe.
     *[(v, "", r, "") for v in ("get", "list")
       for r in ("configmaps", "secrets")],
     *[(v, "apps", r, "") for v in ("get", "list")
       for r in ("deployments", "statefulsets", "daemonsets", "replicasets")],
+    # YAML apply / edit from the console (update verb).
+    ("update", "", "configmaps", ""),
+    ("update", "", "services", ""),
+    *[("update", "apps", r, "") for r in ("deployments", "statefulsets", "daemonsets")],
     # WebSocket clients connect exec/portforward with GET, SPDY with POST -
     # checking only "create" once hid a 403 on every exec-based feature.
     ("get", "", "pods", "exec"),

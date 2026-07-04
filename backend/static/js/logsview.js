@@ -144,6 +144,7 @@ export function openLogs(namespace, pod, containers, opts = {}) {
     title: `logs ${merged ? pod : containers[0]}`,
     kind: 'logs',
     el: root,
+    restore: { kind: 'logs', ns: namespace, pod, ctrs: containers },
     onClose: closeAll,
   });
   reopen();

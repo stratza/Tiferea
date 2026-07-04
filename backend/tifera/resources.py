@@ -85,6 +85,32 @@ def read_object(kind: str, namespace: str, name: str):
     return getattr(api_cls(), method)(name, namespace)
 
 
+# Kinds that may be edited & applied from the console (YAML apply). Secrets are
+# excluded on purpose (their values are masked, so an edit would clobber them);
+# Pods are excluded (mostly immutable - edits just error confusingly).
+_WRITERS = {
+    "Service": (client.CoreV1Api, "replace_namespaced_service"),
+    "ConfigMap": (client.CoreV1Api, "replace_namespaced_config_map"),
+    "Deployment": (client.AppsV1Api, "replace_namespaced_deployment"),
+    "StatefulSet": (client.AppsV1Api, "replace_namespaced_stateful_set"),
+    "DaemonSet": (client.AppsV1Api, "replace_namespaced_daemon_set"),
+}
+
+
+def writable(kind: str) -> bool:
+    return kind in _WRITERS
+
+
+def replace_object(kind: str, namespace: str, name: str, body: dict):
+    """Apply edited YAML via a full replace (update). Raises ApiException on
+    RBAC/conflict/validation errors; returns None for unsupported kinds."""
+    entry = _WRITERS.get(kind)
+    if entry is None:
+        return None
+    api_cls, method = entry
+    return getattr(api_cls(), method)(name, namespace, body)
+
+
 def mask_secret(data: dict) -> dict:
     """Replace Secret values with placeholders (never expose secret data)."""
     if data.get("kind") == "Secret":

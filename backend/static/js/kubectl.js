@@ -90,6 +90,7 @@ export function openKubectl() {
 
   addTab({
     id: tabId, title: 'kubectl', kind: 'terminal', el: root,
+    restore: { kind: 'kubectl' },
     onShow: () => { fit.fit(); term.focus(); },
     onClose: () => {
       deliberate = true;

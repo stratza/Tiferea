@@ -6,8 +6,15 @@
 
 import { $, el } from './util.js';
 
-const tabs = [];      // {id, title, kind, el, onClose, onShow, onHide}
+const tabs = [];      // {id, title, kind, el, onClose, onShow, onHide, restore}
+const changeListeners = [];
 let layout = 1;       // 1 | 2 | 4 visible panes
+
+// Workspace persistence hooks (feature 6): fire when the set of open tabs
+// changes; restoreList() gives serializable descriptors for open tabs.
+export function onTabsChange(fn) { changeListeners.push(fn); }
+function fireChange() { for (const fn of changeListeners) { try { fn(); } catch { /* */ } } }
+export function restoreList() { return tabs.filter((t) => t.restore).map((t) => t.restore); }
 let slots = [null];   // length === layout; each holds a tabId or null
 let focused = 0;      // index into slots
 let blinkId = null;
@@ -46,6 +53,7 @@ export function addTab(tab) {
   $('#panels').append(tab.el);
   slots[focused] = tab.id;   // land in the focused pane
   apply();
+  fireChange();
   return tab;
 }
 
@@ -73,8 +81,9 @@ export function closeTab(id) {
     }
   }
   // Collapse back to plain tabs once there's nothing left to tile.
-  if (tabs.length <= 1 && layout > 1) { setLayout(1); return; }
+  if (tabs.length <= 1 && layout > 1) { setLayout(1); fireChange(); return; }
   apply();
+  fireChange();
 }
 
 export function setTitle(id, title) {

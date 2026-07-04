@@ -31,12 +31,20 @@ rules:
     resources: ["pods", "services", "endpoints", "events", "nodes", "namespaces"]
     verbs: ["get", "list", "watch"]
   # Command-palette search & describe (names only; Secret values are masked).
+  # "update" also powers YAML apply/edit from the console; drop it to make the
+  # describe view read-only.
   - apiGroups: [""]
     resources: ["configmaps", "secrets"]
     verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["configmaps", "services"]
+    verbs: ["update"]
   - apiGroups: ["apps"]
     resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
     verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["update"]
   # WebSocket clients open exec/portforward with GET (verb "get");
   # SPDY clients like kubectl use POST (verb "create"). Both are needed.
   - apiGroups: [""]
@@ -123,7 +131,7 @@ spec:
         - name: tifera
           # Local/source build. For a published release use the pinned
           # manifest from GitHub Releases (image ghcr.io/<owner>/tifera:<ver>).
-          image: tifera:0.1.2
+          image: tifera:0.1.3
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

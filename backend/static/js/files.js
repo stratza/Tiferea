@@ -321,6 +321,7 @@ export function openFiles(namespace, pod, container, startPath = '/') {
     title: `files ${container}`,
     kind: 'files',
     el: root,
+    restore: { kind: 'files', ns: namespace, pod, ctr: container },
     onClose: closeOverlay,
   });
   renderBookmarks();

@@ -194,7 +194,8 @@ export function openPod(pod) {
   });
   on('metrics', () => { if (findTab(tabId)) rerender(); });
 
-  addTab({ id: tabId, title: `${name}`, kind: 'pod', el: root });
+  addTab({ id: tabId, title: `${name}`, kind: 'pod', el: root,
+           restore: { kind: 'pod', ns: namespace, name } });
   rerender();
   loadEvents();
 }

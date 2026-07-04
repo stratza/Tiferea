@@ -7,7 +7,7 @@
 <br/>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/stratza/tiferea/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI&labelColor=1a1a1a)](https://github.com/stratza/tiferea/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.2-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.3-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-%E2%89%A5%201.27-4a4a4a?style=for-the-badge&logo=kubernetes&logoColor=white&labelColor=1a1a1a)](deploy/)
 [![Python](https://img.shields.io/badge/python-3.12-4a4a4a?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a1a)](backend/)
 [![License](https://img.shields.io/badge/license-MIT-9e9e9e?style=for-the-badge&labelColor=1a1a1a)](LICENSE)
@@ -46,8 +46,9 @@
 | 👥 | **Multi-operator** | Isolated sessions per browser, presence badges, mutual "someone else has a shell here" warnings, **collaborative shared sessions** (join a colleague's live shell), edit-conflict courtesy checks |
 | 🔍 | **Command palette** | `Ctrl+K` to search pods, containers, Services, Deployments, ConfigMaps and Secrets (names only), or jump to any view |
 | ⎈ | **kubectl console** | Rancher-style in-cluster kubectl shell, authenticated as TifEra's ServiceAccount (bounded by its RBAC) |
-| 🧾 | **Accountability** | Action log (shell/file/quick actions with client identity + IP, JSONL export), optional terminal session recording (.cast files) |
-| 🛠 | **Tools** | Pod restart with self-protection for TifEra's own pod, bulk multi-select actions, YAML/describe view (Secret values masked), events feed, command snippets, broadcast input to multiple terminals |
+| 🧾 | **Accountability** | Action log (shell/file/quick actions with client identity + IP, JSONL export), optional terminal session recording (.cast files) with in-browser playback |
+| 🛠 | **Tools** | Pod restart with self-protection for TifEra's own pod, bulk multi-select actions, YAML/describe view with opt-in edit & apply (Secret values masked), events feed, command snippets, broadcast input to multiple terminals |
+| ⚙️ | **Settings** | Theme, terminal font size, workspace persistence (restore open tabs on reload), resizable sidebar |
 
 ---
 
@@ -78,9 +79,9 @@ The frontend is deliberately dependency-free: vanilla ES modules with vendored x
 
 ```sh
 # pinned manifest attached to each GitHub Release
-kubectl apply -f https://github.com/stratza/tiferea/releases/latest/download/tifera-0.1.2.yaml
+kubectl apply -f https://github.com/stratza/tiferea/releases/latest/download/tifera-0.1.3.yaml
 # …or Helm (chart published as an OCI artifact):
-helm install tifera oci://ghcr.io/stratza/charts/tifera --version 0.1.2 -n tifera --create-namespace
+helm install tifera oci://ghcr.io/stratza/charts/tifera --version 0.1.3 -n tifera --create-namespace
 
 kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080
 ```
@@ -88,14 +89,14 @@ kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080
 **From source** (local build into your cluster):
 
 ```sh
-docker build -t tifera:0.1.2 backend
-# kind: `kind load docker-image tifera:0.1.2`  ·  k3d: `k3d image import tifera:0.1.2`
+docker build -t tifera:0.1.3 backend
+# kind: `kind load docker-image tifera:0.1.3`  ·  k3d: `k3d image import tifera:0.1.3`
 kubectl apply -f deploy/tifera.yaml                 # or: helm install tifera deploy/helm/tifera -n tifera --create-namespace
 kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080  - no login, no configuration
 ```
 
 > [!NOTE]
-> **v0.1.2** - adds an in-cluster kubectl console, a redesigned inventory navigator with status filters, and a clean monochrome (emoji-free) UI, on top of collaborative sessions, split-pane tiling and the command palette. Deployed and exercised end-to-end on a single-node k3s v1.36 cluster. See the [CHANGELOG](CHANGELOG.md) for the full list, including the war stories.
+> **v0.1.3** - adds a settings dialog with workspace persistence and a resizable sidebar, in-place YAML edit & apply, and session-recording playback, on top of the kubectl console, collaborative sessions and command palette. Deployed and exercised end-to-end on a single-node k3s v1.36 cluster. See the [CHANGELOG](CHANGELOG.md) for the full list, including the war stories.
 
 <details>
 <summary><b>📁 Repository layout</b></summary>
@@ -152,9 +153,9 @@ TifEra suits disconnected clusters well: at **runtime** it talks only to the in-
 **1. Build on a connected machine** (the build fetches the base image, Python deps and kubectl):
 
 ```sh
-docker build -t tifera:0.1.2 backend
+docker build -t tifera:0.1.3 backend
 # different arch on the air-gapped side? build multi-arch:
-docker buildx build --platform linux/amd64,linux/arm64 -t tifera:0.1.2 backend
+docker buildx build --platform linux/amd64,linux/arm64 -t tifera:0.1.3 backend
 # pin kubectl for reproducibility: --build-arg KUBECTL_VERSION=v1.31.4
 ```
 
@@ -162,15 +163,15 @@ docker buildx build --platform linux/amd64,linux/arm64 -t tifera:0.1.2 backend
 
 ```sh
 # a) internal registry (recommended)
-docker tag  tifera:0.1.2 registry.internal.example/tifera:0.1.2
-docker push registry.internal.example/tifera:0.1.2
+docker tag  tifera:0.1.3 registry.internal.example/tifera:0.1.3
+docker push registry.internal.example/tifera:0.1.3
 
 # b) tarball import (no registry) - load into each node's runtime
-docker save tifera:0.1.2 -o tifera-0.1.2.tar     # on the connected box
+docker save tifera:0.1.3 -o tifera-0.1.3.tar     # on the connected box
 #   copy the tar to the node, then:
-sudo k3s ctr images import tifera-0.1.2.tar       # k3s / containerd
-#   plain containerd: sudo ctr -n k8s.io images import tifera-0.1.2.tar
-#   kind:            kind load image-archive tifera-0.1.2.tar
+sudo k3s ctr images import tifera-0.1.3.tar       # k3s / containerd
+#   plain containerd: sudo ctr -n k8s.io images import tifera-0.1.3.tar
+#   kind:            kind load image-archive tifera-0.1.3.tar
 ```
 
 **3. Mirror the one runtime-pulled image.** The *only* image TifEra can pull at runtime is the ephemeral debug container (default `busybox:1.36`), used to inspect distroless/shell-less targets. Mirror it and point TifEra at the copy - or skip it (the feature simply errors clearly when used):
@@ -185,13 +186,13 @@ docker push registry.internal.example/busybox:1.36
 
 ```sh
 # plain manifest - rewrite the image reference on the way in:
-sed 's#image: tifera:0.1.2#image: registry.internal.example/tifera:0.1.2#' \
+sed 's#image: tifera:0.1.3#image: registry.internal.example/tifera:0.1.3#' \
   deploy/tifera.yaml | kubectl apply -f -
 
 # …or Helm:
 helm install tifera deploy/helm/tifera -n tifera --create-namespace \
   --set image.repository=registry.internal.example/tifera \
-  --set image.tag=0.1.2 \
+  --set image.tag=0.1.3 \
   --set config.debugImage=registry.internal.example/busybox:1.36
 ```
 

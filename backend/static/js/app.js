@@ -9,8 +9,11 @@ import { openMetrics } from './metricsview.js';
 import { openTopology } from './topologyview.js';
 import { openActions, openEventsFeed, openSnippets } from './toolsview.js';
 import { openKubectl } from './kubectl.js';
+import { openRecordings } from './recordings.js';
 import { initDashboard } from './dashboard.js';
 import { initPalette, openPalette } from './palette.js';
+import { initSettings, openSettings } from './settings.js';
+import { initWorkspace, restoreWorkspace } from './workspace.js';
 
 // -- theme -------------------------------------------------------------
 
@@ -22,6 +25,28 @@ function applyTheme(theme) {
 applyTheme(localStorage.getItem('tifera.theme') || 'dark');
 $('#theme-btn').addEventListener('click', () =>
   applyTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark'));
+$('#settings-btn').addEventListener('click', openSettings);
+
+// -- resizable sidebar (feature 6) -------------------------------------
+
+(function initSidebarResize() {
+  const saved = parseInt(localStorage.getItem('tifera.sidebarWidth') || '', 10);
+  if (saved >= 240 && saved <= 640) document.getElementById('sidebar').style.width = `${saved}px`;
+  const handle = $('#sidebar-resize');
+  let dragging = false;
+  handle.addEventListener('mousedown', (e) => { dragging = true; e.preventDefault(); document.body.classList.add('resizing'); });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const w = Math.min(640, Math.max(240, e.clientX));
+    document.getElementById('sidebar').style.width = `${w}px`;
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.classList.remove('resizing');
+    localStorage.setItem('tifera.sidebarWidth', String(parseInt(getComputedStyle($('#sidebar')).width, 10)));
+  });
+})();
 
 // -- client identity ---------------------------------------------------
 
@@ -44,7 +69,7 @@ $('#client-name-btn').addEventListener('click', () => {
 
 const OPENERS = { kubectl: openKubectl, metrics: openMetrics, topology: openTopology,
                   events: openEventsFeed, actions: openActions,
-                  snippets: openSnippets };
+                  snippets: openSnippets, recordings: openRecordings };
 for (const btn of document.querySelectorAll('#global-tabs [data-open]')) {
   btn.addEventListener('click', () => OPENERS[btn.dataset.open]());
 }
@@ -96,6 +121,7 @@ on('hello', () => {
   $('#sb-cluster').textContent = `${id.namespace}/${id.pod} @ ${id.node || '?'}`;
   $('#sb-version').textContent = `v${id.version}`;
   updateCounts();
+  restoreWorkspace();   // pods are in the hello payload, so pod tabs resolve
 });
 on('pods', updateCounts);
 on('presence', updateCounts);
@@ -154,4 +180,6 @@ updateConn();
 tree.init();
 initDashboard();
 initPalette();
+initSettings();
+initWorkspace();
 connect();

@@ -22,6 +22,16 @@ export function refreshThemes() {
   for (const h of handles.values()) h.term.options.theme = termTheme();
 }
 
+// Live-apply a terminal font size to every open terminal (Settings).
+export function setTermFontSize(size) {
+  size = Math.min(28, Math.max(8, size));
+  localStorage.setItem('tifera.termFontSize', String(size));
+  for (const h of handles.values()) {
+    h.term.options.fontSize = size;
+    try { h.fit.fit(); } catch { /* not visible */ }
+  }
+}
+
 export function broadcastLine(text) {
   let n = 0;
   for (const h of handles.values()) {
@@ -289,7 +299,7 @@ export function openTerminal(namespace, pod, container, opts = {}) {
   });
 
   const handle = {
-    term, bcast, target, sendText,
+    term, fit, bcast, target, sendText,
     get exited() { return exited; },
   };
   handles.set(tabId, handle);
@@ -299,6 +309,7 @@ export function openTerminal(namespace, pod, container, opts = {}) {
     title: `${joining ? 'join' : 'shell'} ${container}`,
     kind: 'terminal',
     el: root,
+    restore: joining ? null : { kind: 'terminal', ns: namespace, pod, ctr: container },
     onShow: () => { fit.fit(); term.focus(); },
     onClose: () => {
       deliberate = true;

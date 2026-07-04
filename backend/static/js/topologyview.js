@@ -223,7 +223,7 @@ export function openTopology() {
     svgHost.replaceChildren(svg);
   }
 
-  addTab({ id: TAB_ID, title: 'Topology', kind: 'topology', el: root });
+  addTab({ id: TAB_ID, title: 'Topology', kind: 'topology', el: root, restore: { kind: 'topology' } });
   fillNamespaces();
   refresh();
 }

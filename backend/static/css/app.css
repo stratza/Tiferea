@@ -109,8 +109,42 @@ h3 {
 .logo-hex { color: var(--muted); transition: color .2s ease; }
 #brand .logo:hover .logo-hex { color: var(--fg); }
 body.disconnected #brand .logo .logo-hex { color: var(--bad); }
-.icon-btn { border: none; font-size: 15px; padding: 3px 9px; border-radius: 8px; color: var(--muted); }
+.brand-btns { display: inline-flex; gap: 2px; align-items: center; }
+.icon-btn { border: none; font-size: 15px; padding: 3px 8px; border-radius: 8px; color: var(--muted); display: inline-flex; align-items: center; }
 .icon-btn:hover { color: var(--fg); }
+
+/* resizable sidebar handle (feature 6) */
+#sidebar-resize { flex: none; width: 5px; cursor: col-resize; background: transparent; }
+#sidebar-resize:hover, body.resizing #sidebar-resize { background: var(--accent-soft); }
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing iframe, body.resizing .term-host { pointer-events: none; }
+
+/* settings dialog */
+#settings {
+  position: fixed; inset: 0; z-index: 400;
+  background: color-mix(in srgb, #000 45%, transparent); backdrop-filter: blur(3px);
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh;
+  animation: fadein .12s ease-out;
+}
+.settings-box {
+  width: min(520px, 94vw); max-height: 80vh; overflow: auto;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: var(--shadow); animation: popin .14s ease-out;
+}
+.set-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border); font-weight: 600;
+}
+.set-close { border: none; background: none; font-size: 16px; color: var(--muted); padding: 0 4px; }
+.set-close:hover { color: var(--fg); }
+.set-section { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.set-section h4 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+.set-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+.set-label { flex: none; width: 180px; font-size: 13px; }
+.set-control { display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap; }
+.set-num { width: 64px; }
+.set-toggle-wrap { display: inline-flex; }
+.set-foot { padding: 10px 18px; font-size: 11px; }
 
 /* command-palette trigger, styled like a search box */
 #search-trigger {
@@ -473,6 +507,24 @@ body.disconnected::after {
 .link-btn:hover { background: none; }
 .describe-root { display: flex; flex-direction: column; height: 100%; }
 .describe-root .yaml-box { margin: 0; border: none; border-radius: 0; max-height: none; flex: 1; }
+.describe-root .editor-area { flex: 1; }
+button.primary { border-color: var(--fg); color: var(--fg); font-weight: 600; }
+button.primary:hover { background: var(--accent-soft); }
+
+/* recordings view (feature 1) */
+.rec-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 280px 1fr; }
+.rec-list { overflow: auto; border-right: 1px solid var(--border); }
+.rec-item { display: flex; align-items: center; border-bottom: 1px solid var(--accent-softer); }
+.rec-open { flex: 1; text-align: left; border: none; background: none; padding: 10px 12px; border-radius: 0; }
+.rec-open:hover { background: var(--accent-softer); }
+.rec-title { font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-meta { font-size: 11px; }
+.rec-del { border: none; background: none; margin-right: 6px; }
+.rec-player { min-width: 0; display: flex; flex-direction: column; }
+.rec-controls { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+.rec-bar { flex: 1; height: 6px; background: var(--bg3); border-radius: 99px; cursor: pointer; overflow: hidden; min-width: 80px; }
+.rec-bar-fill { height: 100%; width: 0; background: var(--fg); }
+.rec-term { flex: 1; min-height: 0; padding: 4px; background: var(--term-bg); overflow: hidden; }
 .term-host { flex: 1; min-height: 0; padding: 4px; background: var(--term-bg); }
 .term-search { width: 170px; }
 .bcast-label { font-size: 12px; }

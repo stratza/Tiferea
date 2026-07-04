@@ -41,7 +41,7 @@ export function openActions() {
       toast(`action log failed: ${e.message}`, 'error');
     }
   }
-  addTab({ id: TAB_ID, title: 'Actions', kind: 'tools', el: root });
+  addTab({ id: TAB_ID, title: 'Actions', kind: 'tools', el: root, restore: { kind: 'actions' } });
   load();
 }
 
@@ -89,7 +89,7 @@ export function openEventsFeed() {
   }
 
   addTab({
-    id: TAB_ID, title: 'Events', kind: 'tools', el: root,
+    id: TAB_ID, title: 'Events', kind: 'tools', el: root, restore: { kind: 'events' },
     onShow: () => { timer = setInterval(load, 10000); },
     onHide: () => clearInterval(timer),
     onClose: () => clearInterval(timer),
@@ -145,6 +145,6 @@ export function openSnippets() {
       toast(`snippets failed: ${e.message}`, 'error');
     }
   }
-  addTab({ id: TAB_ID, title: 'Snippets', kind: 'tools', el: root });
+  addTab({ id: TAB_ID, title: 'Snippets', kind: 'tools', el: root, restore: { kind: 'snippets' } });
   load();
 }

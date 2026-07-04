@@ -35,6 +35,9 @@ persistence:
 rbac:
   # The pod-restart quick action needs `delete pods`; disable to drop it.
   allowPodDelete: true
+  # YAML apply/edit from the console needs `update` on workloads/configmaps/
+  # services. Disable to keep the describe view read-only.
+  allowApply: true
 
 networkPolicy:
   # Restrict who can reach the console. When enabled with an empty `ingress`
