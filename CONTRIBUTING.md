@@ -83,6 +83,44 @@ on the node.
   refusal).
 - Update `CHANGELOG.md` under **Unreleased**.
 
+## Cutting a release
+
+Releases are tag-driven and fully automated by
+[`.github/workflows/release.yml`](.github/workflows/release.yml). To ship
+version `X.Y.Z`:
+
+1. Bump the version in the four places it lives, and keep them in sync:
+   `backend/tifera/__init__.py`, `deploy/helm/tifera/Chart.yaml`
+   (`version` + `appVersion`), `deploy/tifera.yaml` (image tag), and the
+   README badge/quickstart.
+2. Move the `CHANGELOG.md` **[Unreleased]** items under a new
+   `## [X.Y.Z] - <date>` heading (the workflow copies this section verbatim
+   into the GitHub Release notes, so keep the heading format exact).
+3. Commit, then tag and push:
+   ```sh
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+Pushing the tag runs the workflow, which gates on the test suite and then:
+
+- builds and pushes a multi-arch (amd64 + arm64) image to
+  `ghcr.io/<owner>/tifera:X.Y.Z` (and `:latest`);
+- packages the Helm chart and pushes it as an OCI artifact to
+  `ghcr.io/<owner>/charts/tifera`;
+- generates `tifera-X.Y.Z.yaml`, a ready-to-apply manifest pinned to the
+  published image;
+- creates the GitHub Release with notes from the CHANGELOG, attaching the
+  manifest and the chart `.tgz`.
+
+You can also trigger it manually from the Actions tab
+(**workflow_dispatch**) by entering a `vX.Y.Z` tag that already exists.
+
+**One-time setup:** the workflow uses the built-in `GITHUB_TOKEN` (no
+secrets to configure). The first pushed image package is private by
+default - make it public under **Packages → tifera → Package settings** if
+you want `kubectl apply` of the manifest to pull without a pull secret.
+
 ## Reporting bugs
 
 Open an issue with: cluster type/version (kind, k3s, EKS…), TifEra version

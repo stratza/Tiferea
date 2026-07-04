@@ -121,7 +121,8 @@ spec:
         fsGroup: 65532
       containers:
         - name: tifera
-          # Replace with your registry path once images are published.
+          # Local/source build. For a published release use the pinned
+          # manifest from GitHub Releases (image ghcr.io/<owner>/tifera:<ver>).
           image: tifera:0.1.1
           imagePullPolicy: IfNotPresent
           ports:

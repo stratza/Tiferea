@@ -1,0 +1,152 @@
+name: release
+
+# Cut a release by pushing a semver tag (e.g. v0.1.1), or run manually.
+# Produces:
+#   - a multi-arch image  ghcr.io/<owner>/tifera:<version> (+ :latest)
+#   - a Helm chart pushed as an OCI artifact and attached as a .tgz
+#   - a ready-to-apply manifest pinned to the published image
+#   - a GitHub Release with notes taken from CHANGELOG.md
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to build and release (e.g. v0.1.1)"
+        required: true
+
+permissions:
+  contents: write   # create the GitHub Release
+  packages: write   # push image + chart to GHCR
+
+jobs:
+  # Never publish a broken build: gate on the same checks CI runs.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r backend/requirements.txt pytest
+      - name: Unit tests (incl. the outside-cluster refusal test)
+        run: pytest backend/tests -q
+        env:
+          PYTHONPATH: backend
+      - name: Frontend syntax check
+        run: |
+          for f in backend/static/js/*.js; do
+            cp "$f" /tmp/check.mjs && node --check /tmp/check.mjs
+          done
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve version and image ref
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            REF="${{ inputs.tag }}"
+          else
+            REF="${{ github.ref_name }}"
+          fi
+          case "$REF" in
+            v*.*.*) : ;;
+            *) echo "::error::tag '$REF' is not semver-like (vX.Y.Z)"; exit 1 ;;
+          esac
+          VERSION="${REF#v}"
+          OWNER="${{ github.repository_owner }}"
+          echo "ref=$REF"                 >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION"         >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${OWNER,,}/tifera" >> "$GITHUB_OUTPUT"
+          echo "charts=ghcr.io/${OWNER,,}/charts" >> "$GITHUB_OUTPUT"
+          # Prerelease if the version has a suffix like -rc.1 / -beta.
+          case "$VERSION" in *-*) echo "prerelease=true" ;; *) echo "prerelease=false" ;; esac >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.vars.outputs.ref }}
+
+      - name: Sanity-check chart/appVersion match the tag
+        run: |
+          CHART_APP=$(grep -E '^appVersion:' deploy/helm/tifera/Chart.yaml | awk '{gsub(/"/,"",$2); print $2}')
+          if [ "$CHART_APP" != "${{ steps.vars.outputs.version }}" ]; then
+            echo "::warning::Chart appVersion ($CHART_APP) != tag (${{ steps.vars.outputs.version }})"
+          fi
+
+      - uses: docker/setup-qemu-action@v3    # arm64 emulation
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.version }}
+            ${{ steps.vars.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.version=${{ steps.vars.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Package and push Helm chart
+        env:
+          V: ${{ steps.vars.outputs.version }}
+        run: |
+          mkdir -p dist
+          helm package deploy/helm/tifera --version "$V" --app-version "$V" -d dist/
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm push "dist/tifera-$V.tgz" "oci://${{ steps.vars.outputs.charts }}"
+
+      - name: Generate a ready-to-apply manifest pinned to the image
+        env:
+          V: ${{ steps.vars.outputs.version }}
+          IMG: ${{ steps.vars.outputs.image }}
+        run: |
+          sed "s#image: tifera:.*#image: ${IMG}:${V}#" deploy/tifera.yaml > "dist/tifera-$V.yaml"
+
+      - name: Extract release notes from CHANGELOG
+        env:
+          V: ${{ steps.vars.outputs.version }}
+        run: |
+          awk -v v="$V" '
+            index($0, "## [" v "]") == 1 {p=1; next}
+            p && index($0, "## [") == 1 {exit}
+            p {print}
+          ' CHANGELOG.md > dist/notes.md
+          if [ ! -s dist/notes.md ]; then
+            echo "Release $V. See CHANGELOG.md for details." > dist/notes.md
+          fi
+          {
+            echo ""
+            echo "## Install"
+            echo '```sh'
+            echo "kubectl apply -f https://github.com/${{ github.repository }}/releases/download/${{ steps.vars.outputs.ref }}/tifera-$V.yaml"
+            echo "# or with Helm:"
+            echo "helm install tifera oci://${{ steps.vars.outputs.charts }}/tifera --version $V -n tifera --create-namespace"
+            echo '```'
+            echo ""
+            echo "Image: \`${{ steps.vars.outputs.image }}:$V\` (linux/amd64, linux/arm64)"
+          } >> dist/notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.ref }}
+          name: TifEra ${{ steps.vars.outputs.version }}
+          body_path: dist/notes.md
+          prerelease: ${{ steps.vars.outputs.prerelease }}
+          files: |
+            dist/tifera-${{ steps.vars.outputs.version }}.yaml
+            dist/tifera-${{ steps.vars.outputs.version }}.tgz

@@ -73,19 +73,24 @@ The frontend is deliberately dependency-free: vanilla ES modules with vendored x
 
 ## 🚀 Quick Start
 
+**From a published release** (multi-arch image on GHCR, no build needed):
+
 ```sh
-# 1. Build the image and make it available to your cluster
+# pinned manifest attached to each GitHub Release
+kubectl apply -f https://github.com/stratza/tiferea/releases/latest/download/tifera-0.1.1.yaml
+# …or Helm (chart published as an OCI artifact):
+helm install tifera oci://ghcr.io/stratza/charts/tifera --version 0.1.1 -n tifera --create-namespace
+
+kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080
+```
+
+**From source** (local build into your cluster):
+
+```sh
 docker build -t tifera:0.1.1 backend
-# (kind: `kind load docker-image tifera:0.1.1`, k3d: `k3d image import tifera:0.1.1`)
-
-# 2. Deploy - plain manifest…
-kubectl apply -f deploy/tifera.yaml
-# …or Helm:
-helm install tifera deploy/helm/tifera -n tifera --create-namespace
-
-# 3. Open the console
-kubectl -n tifera port-forward svc/tifera 8080:80
-# → http://localhost:8080  - no login, no configuration
+# kind: `kind load docker-image tifera:0.1.1`  ·  k3d: `k3d image import tifera:0.1.1`
+kubectl apply -f deploy/tifera.yaml                 # or: helm install tifera deploy/helm/tifera -n tifera --create-namespace
+kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080  - no login, no configuration
 ```
 
 > [!NOTE]
