@@ -9,9 +9,11 @@ import { openPod } from './podpanel.js';
 
 const TAB_ID = 'topology';
 const SVGNS = 'http://www.w3.org/2000/svg';
-const COLORS = { Pod: '#9ece6a', Service: '#7aa2f7', Deployment: '#bb9af7',
-                 StatefulSet: '#bb9af7', DaemonSet: '#bb9af7', Job: '#bb9af7',
-                 ReplicaSet: '#bb9af7', ConfigMap: '#565f89', Secret: '#e0af68' };
+// Monochrome palette: kinds are distinguished by shade, size and label;
+// red is reserved for unhealthy states.
+const COLORS = { Pod: '#c2c2c2', Service: '#8e8e8e', Deployment: '#5f5f5f',
+                 StatefulSet: '#5f5f5f', DaemonSet: '#5f5f5f', Job: '#5f5f5f',
+                 ReplicaSet: '#5f5f5f', ConfigMap: '#a8a8a8', Secret: '#787878' };
 
 function layout(nodes, edges) {
   const pos = new Map();
@@ -65,10 +67,15 @@ export function openTopology() {
   const mountsBox = el('input', { type: 'checkbox', title: 'show ConfigMap/Secret mounts' });
   const status = el('span', { class: 'muted' });
   const svgHost = el('div', { class: 'topo-host' });
+  let resetView = null;   // assigned by draw(); re-fits the whole graph
   const toolbar = el('div', { class: 'term-toolbar' },
     el('span', { class: 'target-label', text: 'Topology' }), nsSel,
     el('label', {}, mountsBox, 'mounts'),
-    el('button', { text: '⟳ refresh', onclick: refresh }), status);
+    el('button', { text: '⟳ refresh', onclick: refresh }),
+    el('button', { text: '⛶ fit', title: 'fit graph to view (or double-click the map)',
+                   onclick: () => resetView?.() }),
+    status,
+    el('span', { class: 'muted', text: 'drag to pan · wheel to zoom' }));
   const root = el('div', { class: 'topo-root' }, toolbar, svgHost);
 
   function fillNamespaces() {
@@ -149,15 +156,69 @@ export function openTopology() {
       svg.append(g);
     }
 
-    // Wheel zoom via viewBox.
+    // Map-style navigation via the viewBox: drag to pan, wheel zooms toward
+    // the cursor, double-click or the toolbar button re-fits the graph.
+    const fit = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    let vb = { ...fit };
+    const applyVb = () =>
+      svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+    applyVb();
+    resetView = () => { vb = { ...fit }; applyVb(); };
+
+    const toWorld = (ev) => {
+      const r = svg.getBoundingClientRect();
+      return { x: vb.x + ((ev.clientX - r.left) / r.width) * vb.w,
+               y: vb.y + ((ev.clientY - r.top) / r.height) * vb.h };
+    };
+
     svg.addEventListener('wheel', (ev) => {
       ev.preventDefault();
-      const [x, y, w, h] = svg.getAttribute('viewBox').split(' ').map(Number);
-      const f = ev.deltaY > 0 ? 1.15 : 0.87;
-      const nw = w * f, nh = h * f;
-      svg.setAttribute('viewBox',
-        `${x + (w - nw) / 2} ${y + (h - nh) / 2} ${nw} ${nh}`);
+      const p = toWorld(ev);   // keep the point under the cursor fixed
+      const f = Math.min(Math.max(ev.deltaY > 0 ? 1.15 : 0.87, 0.2), 5);
+      const w = Math.min(Math.max(vb.w * f, fit.w / 40), fit.w * 8);
+      const scale = w / vb.w;
+      vb = { x: p.x - (p.x - vb.x) * scale, y: p.y - (p.y - vb.y) * scale,
+             w, h: vb.h * scale };
+      applyVb();
     }, { passive: false });
+
+    let drag = null;
+    let suppressClick = false;
+    svg.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return;
+      drag = { sx: ev.clientX, sy: ev.clientY, vx: vb.x, vy: vb.y, moved: false };
+      svg.setPointerCapture(ev.pointerId);
+      svg.classList.add('dragging');
+    });
+    svg.addEventListener('pointermove', (ev) => {
+      if (!drag) return;
+      const r = svg.getBoundingClientRect();
+      const dx = ((ev.clientX - drag.sx) / r.width) * vb.w;
+      const dy = ((ev.clientY - drag.sy) / r.height) * vb.h;
+      if (Math.abs(ev.clientX - drag.sx) + Math.abs(ev.clientY - drag.sy) > 3) {
+        drag.moved = true;
+      }
+      vb.x = drag.vx - dx;
+      vb.y = drag.vy - dy;
+      applyVb();
+    });
+    const endDrag = () => {
+      if (drag?.moved) suppressClick = true;   // a pan is not a node click
+      drag = null;
+      svg.classList.remove('dragging');
+    };
+    svg.addEventListener('pointerup', endDrag);
+    svg.addEventListener('pointercancel', endDrag);
+    svg.addEventListener('click', (ev) => {
+      if (suppressClick) {
+        suppressClick = false;
+        ev.stopPropagation();
+      }
+    }, true);
+    svg.addEventListener('dblclick', (ev) => {
+      ev.preventDefault();
+      resetView();
+    });
 
     svgHost.replaceChildren(svg);
   }

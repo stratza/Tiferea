@@ -147,8 +147,8 @@ export function openPod(pod) {
     for (const [cname, canvases] of sparks) {
       try {
         const r = await api(`/api/metrics/history?target=${encodeURIComponent(`${namespace}/${name}/${cname}`)}`);
-        sparkline(canvases.cpu, r.samples, 1, '#7aa2f7');
-        sparkline(canvases.mem, r.samples, 2, '#9ece6a');
+        sparkline(canvases.cpu, r.samples, 1, '#9a9a9e');
+        sparkline(canvases.mem, r.samples, 2, '#6a6a6e');
       } catch { /* metrics may be unavailable */ }
     }
   }

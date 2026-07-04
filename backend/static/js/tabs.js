@@ -31,11 +31,17 @@ export function getActive() {
   return findTab(activeId);
 }
 
+// Show the welcome panel only when no tabs are open (hide, don't destroy, so
+// closing the last tab brings it back instead of a blank screen).
+function updateWelcome() {
+  $('#welcome')?.classList.toggle('hidden', tabs.length > 0);
+}
+
 export function addTab(tab) {
-  $('#welcome')?.remove();
   tabs.push(tab);
   tab.el.classList.add('panel');
   $('#panels').append(tab.el);
+  updateWelcome();
   activate(tab.id);
   return tab;
 }
@@ -71,6 +77,7 @@ export function closeTab(id) {
   } else {
     render();
   }
+  updateWelcome();
 }
 
 export function setTitle(id, title) {

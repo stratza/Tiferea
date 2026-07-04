@@ -12,10 +12,10 @@ const handles = new Map(); // tabId -> handle
 export function termTheme() {
   const dark = document.body.dataset.theme !== 'light';
   return dark
-    ? { background: '#11151a', foreground: '#d8dee9', cursor: '#88c0d0',
-        selectionBackground: '#3b4252' }
-    : { background: '#ffffff', foreground: '#1f2328', cursor: '#0969da',
-        selectionBackground: '#b6d7ff' };
+    ? { background: '#141415', foreground: '#e6e6e6', cursor: '#ffffff',
+        cursorAccent: '#141415', selectionBackground: '#3a3a3c' }
+    : { background: '#ffffff', foreground: '#1c1c1e', cursor: '#1c1c1e',
+        cursorAccent: '#ffffff', selectionBackground: '#d4d4d6' };
 }
 
 export function refreshThemes() {
