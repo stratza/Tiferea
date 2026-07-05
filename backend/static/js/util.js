@@ -87,10 +87,18 @@ export function wsUrl(path) {
 
 // -- client identity: random ID + optional self-chosen display name ----------
 
+function randomId() {
+  // crypto.randomUUID() exists only in secure contexts (HTTPS/localhost);
+  // TifEra is often served over plain HTTP, so fall back to getRandomValues.
+  if (crypto.randomUUID) return crypto.randomUUID().replaceAll('-', '').slice(0, 16);
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 function initClient() {
   let id = localStorage.getItem('tifera.clientId');
   if (!id) {
-    id = crypto.randomUUID().replaceAll('-', '').slice(0, 16);
+    id = randomId();
     localStorage.setItem('tifera.clientId', id);
   }
   return { id, name: localStorage.getItem('tifera.clientName') || '' };
