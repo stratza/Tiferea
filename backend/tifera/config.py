@@ -43,6 +43,11 @@ DEBUG_IMAGE = os.environ.get("TIFERA_DEBUG_IMAGE", "busybox:1.36")
 RECORD_SESSIONS = os.environ.get("TIFERA_RECORD_SESSIONS", "") in ("1", "true", "yes")
 CAST_RETENTION_DAYS = int(os.environ.get("TIFERA_CAST_RETENTION_DAYS", "14"))
 
+# Authentication (multi-user; state stored in a managed k8s Secret)
+AUTH_SECRET_NAME = os.environ.get("TIFERA_AUTH_SECRET", "tifera-auth")
+SESSION_TTL_SECONDS = int(os.environ.get("TIFERA_SESSION_TTL", str(12 * 3600)))
+SESSION_COOKIE = "tifera_session"
+
 # Static frontend bundle (baked into the image)
 STATIC_DIR = os.environ.get(
     "TIFERA_STATIC_DIR",

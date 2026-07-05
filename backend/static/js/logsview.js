@@ -39,9 +39,9 @@ export function openLogs(namespace, pod, containers, opts = {}) {
   const tsBox = el('input', { type: 'checkbox' });
   const followBox = el('input', { type: 'checkbox', checked: true });
   followBox.addEventListener('change', () => { follow = followBox.checked; });
-  const pauseBtn = el('button', { text: 'pause', onclick: () => {
+  const pauseBtn = el('button', { text: '⏸ pause', onclick: () => {
     paused = !paused;
-    pauseBtn.textContent = paused ? 'resume' : 'pause';
+    pauseBtn.textContent = paused ? '▶ resume' : '⏸ pause';
     if (!paused) render();
   } });
   const filterInput = el('input', { placeholder: 'filter (regex)', class: 'log-filter',
@@ -54,7 +54,7 @@ export function openLogs(namespace, pod, containers, opts = {}) {
     } });
 
   const downloads = containers.map((c) =>
-    el('a', { class: 'button', text: `get ${merged ? c : 'download'}`,
+    el('a', { class: 'button', text: `⬇ ${merged ? c : 'download'}`,
               href: `/api/logs/${namespace}/${pod}/${c}?tailLines=0&previous=0` }));
 
   const toolbar = el('div', { class: 'term-toolbar' },
@@ -64,7 +64,7 @@ export function openLogs(namespace, pod, containers, opts = {}) {
     el('label', { title: 'previous instance' }, prevBox, 'previous'),
     el('label', {}, tsBox, 'timestamps'),
     tailSel, filterInput,
-    el('button', { text: 'refresh reopen', onclick: reopen }),
+    el('button', { text: '🔄 reopen', onclick: reopen }),
     ...downloads);
 
   const root = el('div', { class: 'log-root' }, toolbar, output);
@@ -141,7 +141,7 @@ export function openLogs(namespace, pod, containers, opts = {}) {
 
   addTab({
     id: tabId,
-    title: `logs ${merged ? pod : containers[0]}`,
+    title: `📜 ${merged ? pod : containers[0]}`,
     kind: 'logs',
     el: root,
     restore: { kind: 'logs', ns: namespace, pod, ctrs: containers },

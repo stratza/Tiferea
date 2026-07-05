@@ -1,9 +1,9 @@
 # TifEra Helm chart values.
 #
-# Trust model: TifEra has NO console authentication. Whoever can reach the
-# Service holds the full power of TifEra's ServiceAccount. Keep the Service
-# ClusterIP + `kubectl port-forward` unless you have decided otherwise, and
-# consider enabling the NetworkPolicy below.
+# Auth: TifEra requires login (first-run admin -> stored in the tifera-auth
+# Secret; Admin/Operator/Viewer roles enforced server-side). It terminates no
+# TLS, so keep the Service ClusterIP + `kubectl port-forward` or front it with
+# a TLS proxy, and consider enabling the NetworkPolicy below.
 
 image:
   repository: tifera

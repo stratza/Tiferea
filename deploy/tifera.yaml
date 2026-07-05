@@ -5,10 +5,10 @@
 #     kubectl -n tifera port-forward svc/tifera 8080:80
 #     → http://localhost:8080
 #
-# Trust model: TifEra has NO console authentication. Whoever can
-# reach the Service holds the full power of TifEra's ServiceAccount. Keep the
-# Service ClusterIP + port-forward unless you have decided otherwise, and
-# consider the sample NetworkPolicy at the bottom of this file.
+# Auth: TifEra requires login (first-run admin -> stored in the tifera-auth
+# Secret; roles Admin/Operator/Viewer enforced server-side). It terminates no
+# TLS, so keep the Service ClusterIP + port-forward or front it with a TLS
+# proxy, and consider the sample NetworkPolicy at the bottom of this file.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -85,6 +85,37 @@ subjects:
     name: tifera
     namespace: tifera
 ---
+# Namespaced Role so TifEra can manage its own auth Secret (users + session
+# signing key). Scoped to the single secret; create is namespace-wide because
+# RBAC cannot restrict create by resource name.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tifera-auth
+  namespace: tifera
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["tifera-auth"]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tifera-auth
+  namespace: tifera
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tifera-auth
+subjects:
+  - kind: ServiceAccount
+    name: tifera
+    namespace: tifera
+---
 # Persistence for TifEra's own data only: snippets + action log.
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -131,7 +162,7 @@ spec:
         - name: tifera
           # Local/source build. For a published release use the pinned
           # manifest from GitHub Releases (image ghcr.io/<owner>/tifera:<ver>).
-          image: tifera:0.1.3
+          image: tifera:0.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

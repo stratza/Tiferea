@@ -1,7 +1,7 @@
 // Settings dialog: appearance, terminal, workspace persistence (feature 6),
 // and identity. All client-side, stored in localStorage.
 
-import { $, client, clientLabel, el, setClientName } from './util.js';
+import { $, client, el } from './util.js';
 import { refreshThemes, setTermFontSize } from './terminal.js';
 import { persistEnabled, setPersist } from './workspace.js';
 
@@ -27,7 +27,6 @@ function render() {
   const box = $('#settings-box');
   if (!box) return;
   const fontSize = parseInt(localStorage.getItem('tifera.termFontSize') || '14', 10);
-  const nameInput = el('input', { value: clientLabel(), placeholder: 'display name' });
   box.replaceChildren(
     el('div', { class: 'set-head' },
       el('span', { text: 'Settings' }),
@@ -49,15 +48,6 @@ function render() {
       row('Restore open tabs on reload',
         toggle(persistEnabled(), (on) => { setPersist(on); }),
         el('span', { class: 'muted', text: 'reopens the same views next visit' }))),
-
-    el('div', { class: 'set-section' },
-      el('h4', { text: 'Identity' }),
-      row('Display name', nameInput,
-        el('button', { text: 'save', onclick: () => {
-          setClientName(nameInput.value);
-          $('#client-name-btn').textContent = clientLabel();
-        } }),
-        el('span', { class: 'muted', text: 'shown to other operators' }))),
 
     el('div', { class: 'set-foot muted', text: `client id ${client.id}` }),
   );

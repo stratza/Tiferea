@@ -4,7 +4,7 @@
 // Containers render as chips; presence, join-shared, bulk-select all live here.
 
 import { $, api, client, el, fmtAge, qsClient, sessionLabel, toast } from './util.js';
-import { isSelfPod, on, state } from './state.js';
+import { canOperate, isSelfPod, on, state } from './state.js';
 import { joinSession, openTerminal } from './terminal.js';
 import { openLogs } from './logsview.js';
 import { openFiles } from './files.js';
@@ -121,8 +121,8 @@ function renderBulkBar() {
   bar.classList.remove('hidden');
   bar.replaceChildren(
     el('span', { class: 'bulk-count', text: `${selected.size} selected` }),
-    el('button', { class: 'danger', text: 'refresh restart', onclick: bulkRestart }),
-    el('button', { text: 'shells', onclick: bulkShells }),
+    el('button', { class: 'danger', text: '🔄 restart', onclick: bulkRestart }),
+    el('button', { text: '⌨ shells', onclick: bulkShells }),
     el('button', { text: 'clear', onclick: clearSelection }));
 }
 
@@ -164,15 +164,18 @@ function containerChip(p, c) {
   const target = `${p.namespace}/${p.name}/${c.name}`;
   const sessions = state.presence.get(target) || [];
   const shared = sessions.find((x) => x.shared && x.clientId !== client.id);
-  const actions = el('span', { class: 'chip-actions' },
+  const op = canOperate();
+  // Viewers get a static chip (no shell/logs/files/join).
+  const actions = op ? el('span', { class: 'chip-actions' },
     el('button', { title: 'logs', onclick: (e) => { e.stopPropagation(); openLogs(p.namespace, p.name, [c.name]); } }, '📜'),
     el('button', { title: 'files', onclick: (e) => { e.stopPropagation(); openFiles(p.namespace, p.name, c.name); } }, '📁'),
     shared ? el('button', { class: 'chip-join', title: `join ${sessionLabel(shared)}'s shared session`,
-                            onclick: (e) => { e.stopPropagation(); joinSession(p.namespace, p.name, c.name, shared.sessionId, shared.clientName); } }, 'join') : null);
-  return el('button', {
-    class: `ctr-chip state-${c.state}`,
-    title: `${c.name} · ${c.state}${c.ready ? '' : ' (not ready)'} - click to open a shell`,
-    onclick: () => openTerminal(p.namespace, p.name, c.name),
+                            onclick: (e) => { e.stopPropagation(); joinSession(p.namespace, p.name, c.name, shared.sessionId, shared.clientName); } }, '🔗') : null) : null;
+  return el(op ? 'button' : 'span', {
+    class: `ctr-chip state-${c.state} ${op ? '' : 'readonly'}`,
+    title: op ? `${c.name} · ${c.state}${c.ready ? '' : ' (not ready)'} - click to open a shell`
+              : `${c.name} · ${c.state}`,
+    onclick: op ? () => openTerminal(p.namespace, p.name, c.name) : null,
   },
   el('span', { class: `dot state-${c.state}` }),
   el('span', { class: 'chip-name', text: c.name }),
@@ -184,7 +187,7 @@ function containerChip(p, c) {
 
 function podCard(p) {
   const self = isSelfPod(p.namespace, p.name);
-  const check = el('input', {
+  const check = canOperate() ? el('input', {
     type: 'checkbox', class: 'pod-check', title: 'select for bulk actions',
     checked: selected.has(p.uid) || null,
     onclick: (e) => {
@@ -192,7 +195,7 @@ function podCard(p) {
       if (e.target.checked) selected.add(p.uid); else selected.delete(p.uid);
       renderBulkBar();
     },
-  });
+  }) : null;
   return el('div', { class: 'pod-card' },
     el('div', { class: 'pod-line' },
       check,

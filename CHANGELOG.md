@@ -6,6 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Curated, colorful emoji icons restored across the UI (each action/view gets
+  a distinct, meaningful glyph); fixed leftover de-emoji artifacts in several
+  toolbars and dropped the grayscale filter on nav/palette icons.
+- Welcome-screen trust card updated to describe the login/roles model.
+
+## [0.2.0] - 2026-07-05
+
+Authentication lands - a breaking change to the trust model (TifEra was
+previously no-auth by design).
+
+### Added
+- **Authentication & roles.** First-run admin setup stored in a managed
+  `tifera-auth` Kubernetes Secret; scrypt passwords; HMAC-signed session
+  cookies (HttpOnly, SameSite=Strict). Roles **Admin / Operator / Viewer**
+  are enforced server-side on every sensitive REST endpoint and WebSocket. A
+  read-only Viewer (login or anonymous "Continue as Viewer") sees only
+  inventory, metrics, topology, events and non-Secret YAML - no shells,
+  files, kubectl, logs, Secrets or writes. Admins manage users from the UI.
+  A namespaced Role lets TifEra manage its own auth Secret.
+
+### Changed
+- The action log now records the authenticated username.
+- Trust-model documentation rewritten across README/SECURITY/CONTRIBUTING and
+  the manifests: login is now required, and a TLS proxy is recommended for
+  any exposure beyond local port-forward (session cookies/passwords cross the
+  wire; the cookie is not marked `Secure` so port-forward still works).
+
 ## [0.1.3] - 2026-07-04
 
 ### Added
@@ -174,7 +202,8 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/stratza/tiferea/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/stratza/tiferea/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/stratza/tiferea/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/stratza/tiferea/compare/v0.1.0...v0.1.1

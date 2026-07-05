@@ -3,10 +3,10 @@ name: tifera
 description: >-
   TifEra - in-cluster-only Kubernetes operations console. One-click container
   shells, file transfer, logs, metrics and topology through the Kubernetes
-  API, with no agents, no kubeconfig and (by design) no console auth.
+  API, with no agents and no kubeconfig. Login with Admin/Operator/Viewer roles.
 type: application
-version: 0.1.3
-appVersion: "0.1.3"
+version: 0.2.0
+appVersion: "0.2.0"
 kubeVersion: ">=1.27.0-0"
 home: https://github.com/stratza/tiferea
 sources:

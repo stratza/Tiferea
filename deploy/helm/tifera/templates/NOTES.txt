@@ -5,11 +5,11 @@ Open the console:
   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "tifera.fullname" . }} 8080:{{ .Values.service.port }}
   → http://localhost:8080
 
-TRUST MODEL - read this once:
-TifEra has no console authentication by design. Anyone who can reach the
-Service holds the full power of its ServiceAccount (shells in every visible
-container, file transfer, log access{{ if .Values.rbac.allowPodDelete }}, pod deletion{{ end }}).
-Access control is network reachability only.
+FIRST STEPS - read this once:
+Open the console and create the admin account (first run). After that, users
+sign in or continue as a read-only Viewer; roles Admin/Operator/Viewer are
+enforced server-side. TifEra terminates no TLS, so front any exposure beyond
+local port-forward with a TLS proxy (session cookies/passwords cross the wire).
 {{- if not .Values.networkPolicy.enabled }}
 
 Consider enabling the NetworkPolicy:  --set networkPolicy.enabled=true

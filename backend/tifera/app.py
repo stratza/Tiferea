@@ -16,14 +16,16 @@ from urllib.parse import quote, urlparse
 
 import yaml
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from kubernetes import client as k8s
 from kubernetes.client import ApiClient
 
 from . import __version__
+from . import auth
 from . import config as cfg
 from . import debug, fsops, kubeshell, recordings, resources, topology
+from .auth import ROLE_LEVEL
 from .resources import resource_index
 from .actionlog import actionlog
 from .broadcast import broadcaster
@@ -50,6 +52,10 @@ async def lifespan(app: FastAPI):
     broadcaster.bind_loop(asyncio.get_running_loop())
     app.state.rbac_missing = None  # None = check still running
     app.state.event_clients = {}   # clientId -> open events-WS count
+    try:
+        auth.store.load()
+    except Exception as exc:  # noqa: BLE001 - surfaced via /api/auth/state
+        log.error("auth state could not be loaded: %s", exc)
     actionlog.open()
     snippet_store.open()
     inventory.start()
@@ -74,8 +80,6 @@ app = FastAPI(title="TifEra", version=__version__, lifespan=lifespan)
 
 @app.middleware("http")
 async def security_headers(request, call_next):
-    # No console auth by design, but CSP still blunts drive-by and
-    # cross-site abuse from other pages the operator has open.
     response = await call_next(request)
     response.headers.setdefault(
         "Content-Security-Policy",
@@ -83,6 +87,144 @@ async def security_headers(request, call_next):
         "style-src 'self' 'unsafe-inline'; connect-src 'self'")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     return response
+
+
+# -- authentication & role enforcement --------------------------------------
+
+# Public API paths (no session required). Everything else under /api/ needs at
+# least a viewer session; role is enforced by path/method below.
+_PUBLIC_API = {"/api/auth/state", "/api/auth/setup", "/api/auth/login",
+               "/api/auth/viewer", "/api/auth/logout"}
+# GET paths a viewer may reach (Secret data is additionally filtered per-role
+# inside the resources/describe handlers).
+_VIEWER_GET = {"/api/pods", "/api/metrics", "/api/metrics/history",
+               "/api/topology", "/api/events", "/api/config", "/api/resources"}
+
+
+def _min_role(method: str, path: str) -> str:
+    if path.startswith("/api/auth/users"):
+        return "admin"
+    if method == "GET" and (path in _VIEWER_GET or path.startswith("/api/describe/")):
+        return "viewer"
+    return "operator"   # anything else that reaches here is sensitive
+
+
+@app.middleware("http")
+async def auth_gate(request: Request, call_next):
+    path = request.url.path
+    # Static assets, /healthz, /readyz, /metrics, /docs and the public auth
+    # endpoints are open; the login page itself must load unauthenticated.
+    if not path.startswith("/api/") or path in _PUBLIC_API:
+        return await call_next(request)
+    user = auth.store.verify_token(request.cookies.get(cfg.SESSION_COOKIE))
+    request.state.user = user
+    if user is None:
+        return JSONResponse({"detail": "authentication required"}, status_code=401)
+    if ROLE_LEVEL[user["role"]] < ROLE_LEVEL[_min_role(request.method, path)]:
+        return JSONResponse({"detail": "insufficient role"}, status_code=403)
+    return await call_next(request)
+
+
+def _set_session(resp: JSONResponse, username: str, role: str) -> None:
+    resp.set_cookie(cfg.SESSION_COOKIE, auth.store.make_token(username, role),
+                    max_age=cfg.SESSION_TTL_SECONDS, httponly=True,
+                    samesite="strict", path="/")
+
+
+def _ws_user(ws: WebSocket, min_role: str) -> dict | None:
+    user = auth.store.verify_token(ws.cookies.get(cfg.SESSION_COOKIE))
+    if user is None or ROLE_LEVEL[user["role"]] < ROLE_LEVEL[min_role]:
+        return None
+    return user
+
+
+# -- auth endpoints ---------------------------------------------------------
+
+@app.get("/api/auth/state")
+def auth_state(request: Request):
+    user = auth.store.verify_token(request.cookies.get(cfg.SESSION_COOKIE))
+    return {"setup": auth.store.is_setup(), "user": user}
+
+
+@app.post("/api/auth/setup")
+async def auth_setup(request: Request):
+    if auth.store.is_setup():
+        raise HTTPException(status_code=409, detail="already set up")
+    data = await request.json()
+    username = (data.get("username") or "").strip()
+    try:
+        auth.store.setup(username, data.get("password") or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except k8s.ApiException as exc:
+        raise HTTPException(status_code=502,
+                            detail=f"cannot write auth Secret: {exc.reason}")
+    resp = JSONResponse({"user": {"username": username, "role": "admin"}})
+    _set_session(resp, username, "admin")
+    return resp
+
+
+@app.post("/api/auth/login")
+async def auth_login(request: Request):
+    data = await request.json()
+    user = auth.store.verify((data.get("username") or "").strip(), data.get("password") or "")
+    if user is None:
+        raise HTTPException(status_code=401, detail="invalid username or password")
+    resp = JSONResponse({"user": user})
+    _set_session(resp, user["username"], user["role"])
+    return resp
+
+
+@app.post("/api/auth/viewer")
+def auth_viewer():
+    resp = JSONResponse({"user": {"username": "viewer", "role": "viewer"}})
+    _set_session(resp, "viewer", "viewer")
+    return resp
+
+
+@app.post("/api/auth/logout")
+def auth_logout():
+    resp = JSONResponse({"status": "ok"})
+    resp.delete_cookie(cfg.SESSION_COOKIE, path="/")
+    return resp
+
+
+@app.get("/api/auth/users")
+def users_list():
+    return {"users": auth.store.list_users()}
+
+
+@app.post("/api/auth/users")
+async def users_add(request: Request):
+    d = await request.json()
+    try:
+        auth.store.add_user((d.get("username") or "").strip(),
+                            d.get("password") or "", d.get("role") or "viewer")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"status": "created"}
+
+
+@app.patch("/api/auth/users/{username}")
+async def users_update(username: str, request: Request):
+    d = await request.json()
+    try:
+        if d.get("role"):
+            auth.store.set_role(username, d["role"])
+        if d.get("password"):
+            auth.store.set_password(username, d["password"])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"status": "updated"}
+
+
+@app.delete("/api/auth/users/{username}")
+def users_delete(username: str):
+    try:
+        auth.store.remove_user(username)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"status": "deleted"}
 
 
 def _origin_ok(ws: WebSocket) -> bool:
@@ -100,9 +242,12 @@ def _identity() -> dict:
 
 
 def _client_of(request: Request) -> dict:
+    # Prefer the authenticated username for accountability; fall back to the
+    # self-declared client name.
+    user = getattr(request.state, "user", None)
     return {
         "client_id": request.query_params.get("clientId", ""),
-        "client_name": request.query_params.get("clientName", ""),
+        "client_name": (user or {}).get("username") or request.query_params.get("clientName", ""),
         "client_ip": request.client.host if request.client else "",
     }
 
@@ -204,15 +349,23 @@ def api_topology(namespace: str = "", mounts: int = 0):
 
 
 @app.get("/api/resources")
-def api_resources():
-    """Cached name index of non-pod resources for the command palette."""
-    return {"resources": resource_index.list()}
+def api_resources(request: Request):
+    """Cached name index of non-pod resources for the command palette.
+    Viewers never see Secrets (not even names)."""
+    items = resource_index.list()
+    user = getattr(request.state, "user", None)
+    if user and user["role"] == "viewer":
+        items = [r for r in items if r["kind"] != "Secret"]
+    return {"resources": items}
 
 
 @app.get("/api/describe/{kind}/{namespace}/{name}")
-def api_describe(kind: str, namespace: str, name: str):
-    """Read-only YAML for a resource (Secret values masked). `editable`
-    tells the console whether YAML apply is offered for this kind."""
+def api_describe(kind: str, namespace: str, name: str, request: Request):
+    """Read-only YAML for a resource (Secret values masked). Viewers cannot
+    describe Secrets at all."""
+    user = getattr(request.state, "user", None)
+    if kind == "Secret" and user and user["role"] == "viewer":
+        raise HTTPException(status_code=403, detail="viewers cannot read Secrets")
     try:
         obj = resources.read_object(kind, namespace, name)
     except k8s.ApiException as exc:
@@ -554,6 +707,9 @@ async def ws_events(ws: WebSocket):
     if not _origin_ok(ws):
         await ws.close(code=4403)
         return
+    if _ws_user(ws, "viewer") is None:
+        await ws.close(code=4401)
+        return
     await ws.accept()
     client_id = ws.query_params.get("clientId", "")
     counts: dict = app.state.event_clients
@@ -593,6 +749,9 @@ async def ws_terminal(ws: WebSocket, namespace: str, pod: str, container: str):
     shared session owned by anyone, feature 1)."""
     if not _origin_ok(ws):
         await ws.close(code=4403)
+        return
+    if _ws_user(ws, "operator") is None:
+        await ws.close(code=4401)
         return
     await ws.accept()
     p = ws.query_params
@@ -716,6 +875,9 @@ async def ws_kubectl(ws: WebSocket):
     if not _origin_ok(ws):
         await ws.close(code=4403)
         return
+    if _ws_user(ws, "operator") is None:
+        await ws.close(code=4401)
+        return
     await ws.accept()
     p = ws.query_params
     ok, why = kubeshell.available()
@@ -787,6 +949,9 @@ async def ws_logs(ws: WebSocket, namespace: str, pod: str, container: str):
     tailLines (default 500), previous, timestamps."""
     if not _origin_ok(ws):
         await ws.close(code=4403)
+        return
+    if _ws_user(ws, "operator") is None:
+        await ws.close(code=4401)
         return
     await ws.accept()
     p = ws.query_params

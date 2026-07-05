@@ -77,3 +77,36 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "tifera.fullname" . }}
     namespace: {{ .Release.Namespace }}
+---
+# Namespaced Role for TifEra's own auth Secret (users + session signing key).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "tifera.fullname" . }}-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tifera.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["tifera-auth"]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "tifera.fullname" . }}-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tifera.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "tifera.fullname" . }}-auth
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "tifera.fullname" . }}
+    namespace: {{ .Release.Namespace }}

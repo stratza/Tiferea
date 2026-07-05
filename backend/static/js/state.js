@@ -10,7 +10,14 @@ export const state = {
   identity: {},
   rbac: null,             // null = check running, [] = ok, [...] = missing
   connected: false,
+  user: null,             // { username, role } once authenticated
 };
+
+const ROLE_LEVEL = { viewer: 1, operator: 2, admin: 3 };
+export function role() { return state.user ? state.user.role : 'viewer'; }
+export function canOperate() { return ROLE_LEVEL[role()] >= ROLE_LEVEL.operator; }
+export function isAdmin() { return role() === 'admin'; }
+export function isViewer() { return role() === 'viewer'; }
 
 const handlers = {};
 

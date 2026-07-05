@@ -7,7 +7,7 @@
 <br/>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/stratza/tiferea/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI&labelColor=1a1a1a)](https://github.com/stratza/tiferea/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.3-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.0-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-%E2%89%A5%201.27-4a4a4a?style=for-the-badge&logo=kubernetes&logoColor=white&labelColor=1a1a1a)](deploy/)
 [![Python](https://img.shields.io/badge/python-3.12-4a4a4a?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a1a)](backend/)
 [![License](https://img.shields.io/badge/license-MIT-9e9e9e?style=for-the-badge&labelColor=1a1a1a)](LICENSE)
@@ -22,15 +22,15 @@
 
 ## ⚡ Overview
 
-**TifEra** is a browser-based, terminal-first operations console for Kubernetes. It runs as a single pod *inside* the cluster it manages and gives every operator who can reach it an interactive interface to every container: one-click shells, file transfer, a filesystem browser, live logs, metrics, and a topology graph - all through the Kubernetes API using the pod's own ServiceAccount. No agents in target pods, no kubeconfig, no CLI on the client.
+**TifEra** is a browser-based, terminal-first operations console for Kubernetes. It runs as a single pod *inside* the cluster it manages and gives signed-in operators an interactive interface to every container: one-click shells, file transfer, a filesystem browser, live logs, metrics, and a topology graph - all through the Kubernetes API using the pod's own ServiceAccount. No agents in target pods, no kubeconfig, no CLI on the client.
 
-> [!WARNING]
-> **TifEra has no console authentication - by design.** Access control is *network reachability*: whoever can open the page holds the full power of TifEra's ServiceAccount. The Service is ClusterIP by default; reach it with `kubectl port-forward` (which itself requires kubeconfig credentials). Widening exposure is your explicit decision - read [SECURITY.md](SECURITY.md) first.
+> [!IMPORTANT]
+> **Login is required.** On first run an admin sets a password (stored in a Kubernetes Secret); after that everyone signs in or continues as a read-only **Viewer**. Access is enforced server-side by role - Admin / Operator / Viewer. TifEra terminates no TLS itself, so still keep the Service ClusterIP or put a TLS proxy in front - read [SECURITY.md](SECURITY.md).
 
 ### 🔥 The Two Rules
 
-- 🔒 **In-Cluster Only**: All identity and credentials come from the pod environment (ServiceAccount token, Downward API). Run the image anywhere else and it exits within 5 seconds - no kubeconfig mode, no bypass flag, enforced by CI.
-- 🌐 **Network Reachability = Access**: No accounts, logins, cookies or roles anywhere. Presence indicators and mutual warnings keep multiple operators aware of each other - awareness, not locking.
+- 🔒 **In-Cluster Only**: All *cluster* credentials come from the pod environment (ServiceAccount token, Downward API). Run the image anywhere else and it exits within 5 seconds - no kubeconfig mode, no bypass flag, enforced by CI.
+- 👤 **Login + roles**: An admin bootstraps the first account on first run; users are Admin, Operator or Viewer. The Viewer sees only non-sensitive data (no shells, files, kubectl, logs, Secrets or writes) - enforced on the server, not just hidden in the UI.
 
 ---
 
@@ -49,6 +49,7 @@
 | 🧾 | **Accountability** | Action log (shell/file/quick actions with client identity + IP, JSONL export), optional terminal session recording (.cast files) with in-browser playback |
 | 🛠 | **Tools** | Pod restart with self-protection for TifEra's own pod, bulk multi-select actions, YAML/describe view with opt-in edit & apply (Secret values masked), events feed, command snippets, broadcast input to multiple terminals |
 | ⚙️ | **Settings** | Theme, terminal font size, workspace persistence (restore open tabs on reload), resizable sidebar |
+| 🔐 | **Auth** | First-run admin setup (stored in a k8s Secret), scrypt passwords, HMAC sessions, Admin / Operator / Viewer roles enforced server-side, or continue as a read-only Viewer |
 
 ---
 
@@ -79,24 +80,26 @@ The frontend is deliberately dependency-free: vanilla ES modules with vendored x
 
 ```sh
 # pinned manifest attached to each GitHub Release
-kubectl apply -f https://github.com/stratza/tiferea/releases/latest/download/tifera-0.1.3.yaml
+kubectl apply -f https://github.com/stratza/tiferea/releases/latest/download/tifera-0.2.0.yaml
 # …or Helm (chart published as an OCI artifact):
-helm install tifera oci://ghcr.io/stratza/charts/tifera --version 0.1.3 -n tifera --create-namespace
+helm install tifera oci://ghcr.io/stratza/charts/tifera --version 0.2.0 -n tifera --create-namespace
 
 kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080
 ```
 
+On first visit you'll create the admin account; after that, sign in or continue as a read-only Viewer.
+
 **From source** (local build into your cluster):
 
 ```sh
-docker build -t tifera:0.1.3 backend
-# kind: `kind load docker-image tifera:0.1.3`  ·  k3d: `k3d image import tifera:0.1.3`
+docker build -t tifera:0.2.0 backend
+# kind: `kind load docker-image tifera:0.2.0`  ·  k3d: `k3d image import tifera:0.2.0`
 kubectl apply -f deploy/tifera.yaml                 # or: helm install tifera deploy/helm/tifera -n tifera --create-namespace
-kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080  - no login, no configuration
+kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080  (create the admin account on first visit)
 ```
 
 > [!NOTE]
-> **v0.1.3** - adds a settings dialog with workspace persistence and a resizable sidebar, in-place YAML edit & apply, and session-recording playback, on top of the kubectl console, collaborative sessions and command palette. Deployed and exercised end-to-end on a single-node k3s v1.36 cluster. See the [CHANGELOG](CHANGELOG.md) for the full list, including the war stories.
+> **v0.2.0** - adds **authentication** (first-run admin, Admin/Operator/Viewer roles enforced server-side, or read-only Viewer), reversing the earlier no-auth model. Builds on the settings dialog, YAML edit & apply, session-recording playback, the kubectl console, collaborative sessions and command palette. Deployed and exercised end-to-end on a single-node k3s v1.36 cluster. See the [CHANGELOG](CHANGELOG.md) for the full list, including the war stories.
 
 <details>
 <summary><b>📁 Repository layout</b></summary>
@@ -106,17 +109,21 @@ backend/
   tifera/            Python 3.12 backend (FastAPI + official kubernetes client)
     __main__.py      entry point: verify in-cluster env → serve
     incluster.py     in-cluster enforcement + RBAC self-check
+    auth.py          login, roles, scrypt passwords, HMAC sessions (k8s Secret)
     terminal.py      PTY session engine (exec streams, replay, recording)
+    kubeshell.py     in-cluster kubectl console (local PTY)
     fsops.py         exec-based file ops (tar/cat pipes, no agent)
     inventory.py     pod watch → live tree
     metrics.py       metrics.k8s.io poller + history
     topology.py      relationship graph builder
+    resources.py     resource index + describe/apply
+    recordings.py    session-recording (.cast) index & retrieval
     logs.py          log streaming
     presence.py      session presence + editor-conflict registries
     actionlog.py     SQLite action log
     snippets.py      snippet store
     debug.py         ephemeral debug containers
-    app.py           HTTP/WS API
+    app.py           HTTP/WS API + auth enforcement
   static/            frontend: dependency-free ES modules + vendored xterm.js
   tests/             unit tests incl. the outside-cluster refusal test
   Dockerfile
@@ -137,9 +144,11 @@ deploy/
 | `TIFERA_RECONNECT_GRACE` | `10` | seconds a dropped session waits for reattach |
 | `TIFERA_MAX_UPLOAD` | `2147483648` | max upload size in bytes |
 | `TIFERA_DEBUG_IMAGE` | `busybox:1.36` | ephemeral debug container image |
-| `TIFERA_RECORD_SESSIONS` | off | `1` = record sessions as .cast files |
+| `TIFERA_RECORD_SESSIONS` | off | `1` = record sessions as .cast files (playable in-app) |
 | `TIFERA_CAST_RETENTION_DAYS` | `14` | recording retention |
 | `TIFERA_METRICS_INTERVAL` | `15` | metrics poll seconds |
+| `TIFERA_AUTH_SECRET` | `tifera-auth` | k8s Secret name holding users + session key |
+| `TIFERA_SESSION_TTL` | `43200` | login session lifetime, seconds (12h) |
 
 With Helm, set these through `values.yaml` (`config.*`, `persistence.*`, `rbac.allowPodDelete`, `networkPolicy.*`).
 </details>
@@ -153,9 +162,9 @@ TifEra suits disconnected clusters well: at **runtime** it talks only to the in-
 **1. Build on a connected machine** (the build fetches the base image, Python deps and kubectl):
 
 ```sh
-docker build -t tifera:0.1.3 backend
+docker build -t tifera:0.2.0 backend
 # different arch on the air-gapped side? build multi-arch:
-docker buildx build --platform linux/amd64,linux/arm64 -t tifera:0.1.3 backend
+docker buildx build --platform linux/amd64,linux/arm64 -t tifera:0.2.0 backend
 # pin kubectl for reproducibility: --build-arg KUBECTL_VERSION=v1.31.4
 ```
 
@@ -163,15 +172,15 @@ docker buildx build --platform linux/amd64,linux/arm64 -t tifera:0.1.3 backend
 
 ```sh
 # a) internal registry (recommended)
-docker tag  tifera:0.1.3 registry.internal.example/tifera:0.1.3
-docker push registry.internal.example/tifera:0.1.3
+docker tag  tifera:0.2.0 registry.internal.example/tifera:0.2.0
+docker push registry.internal.example/tifera:0.2.0
 
 # b) tarball import (no registry) - load into each node's runtime
-docker save tifera:0.1.3 -o tifera-0.1.3.tar     # on the connected box
+docker save tifera:0.2.0 -o tifera-0.2.0.tar     # on the connected box
 #   copy the tar to the node, then:
-sudo k3s ctr images import tifera-0.1.3.tar       # k3s / containerd
-#   plain containerd: sudo ctr -n k8s.io images import tifera-0.1.3.tar
-#   kind:            kind load image-archive tifera-0.1.3.tar
+sudo k3s ctr images import tifera-0.2.0.tar       # k3s / containerd
+#   plain containerd: sudo ctr -n k8s.io images import tifera-0.2.0.tar
+#   kind:            kind load image-archive tifera-0.2.0.tar
 ```
 
 **3. Mirror the one runtime-pulled image.** The *only* image TifEra can pull at runtime is the ephemeral debug container (default `busybox:1.36`), used to inspect distroless/shell-less targets. Mirror it and point TifEra at the copy - or skip it (the feature simply errors clearly when used):
@@ -186,13 +195,13 @@ docker push registry.internal.example/busybox:1.36
 
 ```sh
 # plain manifest - rewrite the image reference on the way in:
-sed 's#image: tifera:0.1.3#image: registry.internal.example/tifera:0.1.3#' \
+sed 's#image: tifera:0.2.0#image: registry.internal.example/tifera:0.2.0#' \
   deploy/tifera.yaml | kubectl apply -f -
 
 # …or Helm:
 helm install tifera deploy/helm/tifera -n tifera --create-namespace \
   --set image.repository=registry.internal.example/tifera \
-  --set image.tag=0.1.3 \
+  --set image.tag=0.2.0 \
   --set config.debugImage=registry.internal.example/busybox:1.36
 ```
 
@@ -214,7 +223,7 @@ There is deliberately no way to run the server against a remote cluster from a w
 
 ## 🛡️ Security
 
-- **Trust model**: no console auth; the network boundary is the security boundary - keep the Service ClusterIP and consider the shipped NetworkPolicy.
+- **Trust model**: login required, with Admin/Operator/Viewer roles enforced server-side; keep the Service ClusterIP (or front it with a TLS proxy) and consider the shipped NetworkPolicy.
 - **Least privilege**: documented ClusterRole; missing permissions surface as a UI banner via a startup self-check instead of failing silently.
 - **Hardened pod**: non-root, read-only root filesystem, all capabilities dropped, bound ServiceAccount token only.
 - **Browser hygiene**: CSP headers and WebSocket `Origin` checks; the browser stores nothing sensitive.

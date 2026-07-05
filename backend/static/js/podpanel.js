@@ -4,7 +4,7 @@
 
 import { api, cpuToMillicores, el, fmtAge, fmtBytes, fmtCpu, memToBytes,
          qsClient, toast } from './util.js';
-import { isSelfPod, on, state } from './state.js';
+import { canOperate, isSelfPod, on, state } from './state.js';
 import { addTab, findTab, focusOrBlink } from './tabs.js';
 import { openTerminal } from './terminal.js';
 import { openFiles } from './files.js';
@@ -104,11 +104,11 @@ export function openPod(pod) {
       el('span', { class: `phase phase-${(p?.reason || p?.phase || 'Unknown').toLowerCase()}`,
                    text: p ? (p.reason || p.phase) : 'deleted' }),
       el('span', { class: 'muted', text: p ? ` node ${p.node} · age ${fmtAge(p.createdAt)} · ${p.restarts} restarts` : '' }),
-      el('button', { text: 'refresh restart pod', class: 'danger', onclick: restart }),
-      el('button', { text: 'merged logs', onclick: () => {
+      canOperate() ? el('button', { text: '🔄 restart pod', class: 'danger', onclick: restart }) : null,
+      canOperate() ? el('button', { text: '📚 merged logs', onclick: () => {
         const cp = current();
         if (cp) openLogs(namespace, name, cp.containers.map((c) => c.name));
-      } }));
+      } }) : null);
   }
 
   function renderContainers(p) {
@@ -126,12 +126,13 @@ export function openPod(pod) {
         el('td', {}, usageCell(usage.cpu, c.requests?.cpu, c.limits?.cpu, fmtCpu, cpuToMillicores)),
         el('td', {}, usageCell(usage.mem, c.requests?.memory, c.limits?.memory, fmtBytes, memToBytes)),
         el('td', {}, cpuCanvas, memCanvas),
-        el('td', { class: 'fs-actions' },
-          el('button', { text: 'shell', title: 'shell', onclick: () => openTerminal(namespace, name, c.name) }),
-          el('button', { text: 'logs', title: 'logs', onclick: () => openLogs(namespace, name, [c.name]) }),
-          el('button', { text: 'prev', title: 'previous logs', onclick: () => openLogs(namespace, name, [c.name], { previous: true }) }),
-          el('button', { text: 'files', title: 'files', onclick: () => openFiles(namespace, name, c.name) }),
-          el('button', { text: 'df', title: 'disk usage', onclick: () => loadDf(c.name) })));
+        el('td', { class: 'fs-actions' }, ...(canOperate() ? [
+          el('button', { text: '⌨', title: 'shell', onclick: () => openTerminal(namespace, name, c.name) }),
+          el('button', { text: '📜', title: 'logs', onclick: () => openLogs(namespace, name, [c.name]) }),
+          el('button', { text: '⏮', title: 'previous logs', onclick: () => openLogs(namespace, name, [c.name], { previous: true }) }),
+          el('button', { text: '📁', title: 'files', onclick: () => openFiles(namespace, name, c.name) }),
+          el('button', { text: '💽', title: 'disk usage', onclick: () => loadDf(c.name) }),
+        ] : [el('span', { class: 'muted', text: 'read-only' })])));
     });
     containersBox.replaceChildren(el('table', { class: 'fs-table' },
       el('thead', {}, el('tr', {},
@@ -176,7 +177,7 @@ export function openPod(pod) {
     try {
       const r = await api(`/api/events?namespace=${namespace}&name=${name}`);
       eventsBox.replaceChildren(
-        el('button', { text: 'refresh refresh events', onclick: loadEvents }),
+        el('button', { text: '🔄 refresh events', onclick: loadEvents }),
         ...r.events.slice(0, 50).map((ev) => el('div', {
           class: `event-line ${ev.type === 'Warning' ? 'lvl-warn' : ''}`,
           text: `${ev.time ? new Date(ev.time).toLocaleTimeString() : ''} [${ev.type}] ${ev.reason}: ${ev.message} (×${ev.count})`,
@@ -194,7 +195,7 @@ export function openPod(pod) {
   });
   on('metrics', () => { if (findTab(tabId)) rerender(); });
 
-  addTab({ id: tabId, title: `${name}`, kind: 'pod', el: root,
+  addTab({ id: tabId, title: `📦 ${name}`, kind: 'pod', el: root,
            restore: { kind: 'pod', ns: namespace, name } });
   rerender();
   loadEvents();

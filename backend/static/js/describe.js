@@ -2,6 +2,7 @@
 // (feature 5). Secret values arrive masked and Secrets are not editable.
 
 import { api, el, toast } from './util.js';
+import { canOperate } from './state.js';
 import { addTab, focusOrBlink } from './tabs.js';
 
 // Kinds the backend accepts a YAML apply for (mirrors resources._WRITERS).
@@ -11,7 +12,7 @@ export function openDescribe(kind, namespace, name) {
   const tabId = `describe-${kind}/${namespace}/${name}`;
   if (focusOrBlink(tabId)) return;
   const url = `/api/describe/${kind}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`;
-  const editable = EDITABLE.has(kind);
+  const editable = EDITABLE.has(kind) && canOperate();
 
   const view = el('pre', { class: 'yaml-box grow', text: 'loading…' });
   const editor = el('textarea', { class: 'editor-area hidden', spellcheck: 'false' });
@@ -22,13 +23,13 @@ export function openDescribe(kind, namespace, name) {
   let editing = false;
 
   function setToolbar() {
-    const btns = [el('button', { text: 'refresh', title: 'reload', onclick: load })];
+    const btns = [el('button', { text: '🔄', title: 'reload', onclick: load })];
     if (editable && !editing) {
-      btns.push(el('button', { text: 'edit', title: 'edit & apply YAML', onclick: startEdit }));
+      btns.push(el('button', { text: '✏ edit', title: 'edit & apply YAML', onclick: startEdit }));
     } else if (editing) {
       btns.push(
-        el('button', { text: 'apply', class: 'primary', title: 'apply the edited YAML', onclick: apply }),
-        el('button', { text: 'cancel', onclick: cancel }));
+        el('button', { text: '✅ apply', class: 'primary', title: 'apply the edited YAML', onclick: apply }),
+        el('button', { text: '✖ cancel', onclick: cancel }));
     }
     toolbar.replaceChildren(
       el('span', { class: 'target-label', text: `${kind} · ${namespace}/${name}` }),
@@ -75,7 +76,7 @@ export function openDescribe(kind, namespace, name) {
     }
   }
 
-  addTab({ id: tabId, title: `${name}`, kind: 'describe', el: root,
+  addTab({ id: tabId, title: `📄 ${name}`, kind: 'describe', el: root,
            restore: { kind: 'describe', k: kind, ns: namespace, name } });
   setToolbar();
   load();

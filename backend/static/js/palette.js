@@ -2,7 +2,7 @@
 // jump-to-view commands. Keyboard-driven, overlay, closes on Esc / click-out.
 
 import { $, api, el } from './util.js';
-import { state } from './state.js';
+import { canOperate, state } from './state.js';
 import { openTerminal } from './terminal.js';
 import { openPod } from './podpanel.js';
 import { openDescribe } from './describe.js';
@@ -19,8 +19,8 @@ let sel = 0;
 // Non-pod resource name index (feature 5), refreshed lazily on palette open.
 let resources = [];
 let resourcesAt = 0;
-const KIND_ICON = { Service: '', ConfigMap: '', Secret: '',
-                    Deployment: '', StatefulSet: '', DaemonSet: '' };
+const KIND_ICON = { Service: '🔀', ConfigMap: '🗄', Secret: '🔑',
+                    Deployment: '📦', StatefulSet: '🗃', DaemonSet: '🛰' };
 
 async function refreshResources() {
   if (Date.now() - resourcesAt < 15000 && resources.length) return;
@@ -31,15 +31,18 @@ async function refreshResources() {
 }
 
 function views() {
-  return [
-    { icon: '', title: 'kubectl', sub: 'in-cluster console', run: openKubectl },
-    { icon: '', title: 'Metrics', sub: 'view', run: openMetrics },
-    { icon: '', title: 'Topology', sub: 'view', run: openTopology },
-    { icon: '', title: 'Events', sub: 'view', run: openEventsFeed },
-    { icon: '', title: 'Actions', sub: 'action log', run: openActions },
-    { icon: '', title: 'Snippets', sub: 'view', run: openSnippets },
-    { icon: '', title: 'Recordings', sub: 'session playback', run: openRecordings },
+  const v = [
+    { icon: '📊', title: 'Metrics', sub: 'view', run: openMetrics },
+    { icon: '🕸', title: 'Topology', sub: 'view', run: openTopology },
+    { icon: '🔔', title: 'Events', sub: 'view', run: openEventsFeed },
   ];
+  if (canOperate()) {
+    v.unshift({ icon: '⎈', title: 'kubectl', sub: 'in-cluster console', run: openKubectl });
+    v.push({ icon: '🧾', title: 'Actions', sub: 'action log', run: openActions },
+           { icon: '✂', title: 'Snippets', sub: 'view', run: openSnippets },
+           { icon: '🎬', title: 'Recordings', sub: 'session playback', run: openRecordings });
+  }
+  return v;
 }
 
 function build(query) {
@@ -53,20 +56,22 @@ function build(query) {
       if (out.length > MAX) break;
       const podHay = `${p.namespace}/${p.name}`.toLowerCase();
       let addedPod = false;
-      for (const c of p.containers) {
-        const hay = `${podHay}/${c.name}`.toLowerCase();
-        if (hay.includes(q)) {
-          out.push({
-            icon: '', title: c.name,
-            sub: `shell · ${p.namespace}/${p.name}`,
-            run: () => openTerminal(p.namespace, p.name, c.name),
-          });
-          addedPod = true;
+      if (canOperate()) {
+        for (const c of p.containers) {
+          const hay = `${podHay}/${c.name}`.toLowerCase();
+          if (hay.includes(q)) {
+            out.push({
+              icon: '⌨', title: c.name,
+              sub: `shell · ${p.namespace}/${p.name}`,
+              run: () => openTerminal(p.namespace, p.name, c.name),
+            });
+            addedPod = true;
+          }
         }
       }
       if (!addedPod && podHay.includes(q)) {
         out.push({
-          icon: '', title: p.name, sub: `pod · ${p.namespace}`,
+          icon: '📦', title: p.name, sub: `pod · ${p.namespace}`,
           run: () => openPod(p),
         });
       }

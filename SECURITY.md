@@ -2,26 +2,35 @@
 
 ## The trust model, stated plainly
 
-TifEra has **no console authentication by design**. Anyone who can reach
-the TifEra Service holds the full power of its ServiceAccount: interactive
-shells in every visible container, file read/write, log access, and pod
-deletion. This is an invariant, not a default - no auth layer will be added
-behind a flag.
+TifEra requires **login**, with role-based access enforced server-side:
 
-Consequently, **network reachability is the entire security boundary**:
+- On first run an admin sets a username + password. It is hashed with
+  `scrypt` and stored, together with the session-signing key, in a
+  Kubernetes Secret (`tifera-auth`) that TifEra manages in its own
+  namespace - nothing sensitive is written to disk.
+- Sessions are stateless HMAC-signed tokens in an HttpOnly, SameSite=Strict
+  cookie (12h default TTL).
+- Roles: **Admin** (full access + user management), **Operator** (full
+  operator access), **Viewer** (read-only, non-sensitive: inventory,
+  metrics, topology, events, non-Secret YAML - no shells, files, kubectl,
+  logs, Secrets, apply/delete or the action log). Every sensitive endpoint
+  and WebSocket checks the role; the UI gating is convenience, not the
+  boundary.
 
-- The shipped Service is `ClusterIP`. Reaching it requires either being
-  inside the cluster network or `kubectl port-forward` (which itself
-  requires kubeconfig credentials). That is the intended posture.
-- Switching the Service to `NodePort`/`LoadBalancer` publishes root-level
-  cluster access to whoever can reach that address. Do this only behind
-  network controls you trust, and use the sample NetworkPolicy shipped with
-  the manifests.
-- Traffic is plain HTTP/WS. TifEra terminates no TLS; put your own proxy in
-  front if you need encryption in transit.
+Two boundaries still matter alongside login:
 
-Deploying TifEra with wide network exposure is a *configuration* decision,
-not a TifEra vulnerability.
+- **Network exposure.** The shipped Service is `ClusterIP`; reach it via
+  `kubectl port-forward`. Switching to `NodePort`/`LoadBalancer` exposes the
+  login page more widely - do it only behind network controls you trust,
+  and consider the sample NetworkPolicy shipped with the manifests.
+- **TLS.** Traffic is plain HTTP/WS - TifEra terminates no TLS. Because
+  session cookies and passwords cross the wire, **put a TLS proxy in front
+  for any exposure beyond local `port-forward`.** The session cookie is not
+  marked `Secure` (so it works over plain-HTTP port-forward); terminate TLS
+  at your proxy.
+
+An operator with the cluster's ServiceAccount RBAC still bounds what any
+logged-in user can ultimately do - TifEra never exceeds its own RBAC.
 
 ## What *is* a vulnerability
 
@@ -52,7 +61,9 @@ open public issues for unpatched vulnerabilities.
 
 ## Hardening checklist for operators
 
-- Keep the Service `ClusterIP`; prefer `kubectl port-forward` for access.
+- Keep the Service `ClusterIP`; prefer `kubectl port-forward` for access, and
+  front any wider exposure with a TLS proxy (cookies/passwords cross the wire).
+- Use strong admin/user passwords; grant Operator sparingly, prefer Viewer.
 - Apply (and adapt) the sample NetworkPolicy shipped with the manifests.
 - Review the ClusterRole; drop the `delete pods` rule (or set
   `rbac.allowPodDelete: false` in the Helm chart) if you don't want the

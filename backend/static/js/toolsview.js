@@ -13,8 +13,8 @@ export function openActions() {
   const root = el('div', { class: 'tools-root' },
     el('div', { class: 'term-toolbar' },
       el('span', { class: 'target-label', text: 'Action log' }),
-      el('button', { text: 'refresh refresh', onclick: load }),
-      el('a', { class: 'button', text: 'get export JSONL', href: '/api/actions/export',
+      el('button', { text: '🔄 refresh', onclick: load }),
+      el('a', { class: 'button', text: '⬇ export JSONL', href: '/api/actions/export',
                 download: 'tifera-actions.jsonl' }),
       el('span', { class: 'muted',
                    text: 'names are self-declared - attribution is cooperative, not forensic' })),
@@ -41,7 +41,7 @@ export function openActions() {
       toast(`action log failed: ${e.message}`, 'error');
     }
   }
-  addTab({ id: TAB_ID, title: 'Actions', kind: 'tools', el: root, restore: { kind: 'actions' } });
+  addTab({ id: TAB_ID, title: '🧾 Actions', kind: 'tools', el: root, restore: { kind: 'actions' } });
   load();
 }
 
@@ -55,7 +55,7 @@ export function openEventsFeed() {
   const root = el('div', { class: 'tools-root' },
     el('div', { class: 'term-toolbar' },
       el('span', { class: 'target-label', text: 'Cluster events' }), nsSel,
-      el('button', { text: 'refresh refresh', onclick: () => load() })),
+      el('button', { text: '🔄 refresh', onclick: () => load() })),
     el('div', { class: 'fs-scroll' },
       el('table', { class: 'fs-table' },
         el('thead', {}, el('tr', {},
@@ -89,7 +89,7 @@ export function openEventsFeed() {
   }
 
   addTab({
-    id: TAB_ID, title: 'Events', kind: 'tools', el: root, restore: { kind: 'events' },
+    id: TAB_ID, title: '🔔 Events', kind: 'tools', el: root, restore: { kind: 'events' },
     onShow: () => { timer = setInterval(load, 10000); },
     onHide: () => clearInterval(timer),
     onClose: () => clearInterval(timer),
@@ -134,9 +134,9 @@ export function openSnippets() {
         el('td', { text: s.name }),
         el('td', { class: 'mono', text: s.command }),
         el('td', { class: 'fs-actions' },
-          el('button', { text: 'insert', title: 'insert into active terminal',
+          el('button', { text: '📋 insert', title: 'insert into active terminal',
                          onclick: () => pasteToActive(s.command) }),
-          el('button', { text: 'del', class: 'danger', onclick: async () => {
+          el('button', { text: '🗑', class: 'danger', onclick: async () => {
             await api(`/api/snippets/${s.id}`, { method: 'DELETE' });
             invalidateSnippets();
             load();
@@ -145,6 +145,6 @@ export function openSnippets() {
       toast(`snippets failed: ${e.message}`, 'error');
     }
   }
-  addTab({ id: TAB_ID, title: 'Snippets', kind: 'tools', el: root, restore: { kind: 'snippets' } });
+  addTab({ id: TAB_ID, title: '✂ Snippets', kind: 'tools', el: root, restore: { kind: 'snippets' } });
   load();
 }

@@ -3,16 +3,17 @@
 Thanks for considering a contribution! TifEra is small and opinionated;
 this document explains the ground rules and the development workflow.
 
-## The two invariants (please read first)
+## The invariants (please read first)
 
 Contributions that violate these will be declined regardless of quality -
 they are the product's identity, not implementation details:
 
 1. **In-cluster only.** No kubeconfig loading, no API-server URL override,
    no standalone/desktop mode, no flag to bypass the startup check.
-2. **No console authentication.** No accounts, logins, cookies, tokens or
-   roles - access control is network reachability by design. Cooperative
-   awareness (presence, warnings) yes; access control no.
+2. **Login + roles, enforced server-side.** Access is gated by
+   authentication with Admin / Operator / Viewer roles, checked on every
+   sensitive endpoint and WebSocket - UI gating is convenience, not the
+   boundary. TifEra never exceeds its own ServiceAccount RBAC.
 
 ## Repository layout
 
@@ -66,6 +67,11 @@ on the node.
   the chart template in `deploy/helm/tifera`, and
   `incluster.py::REQUIRED_ACCESS` (the self-check - test the verbs the code
   *actually uses*; WebSocket exec is `get`, SPDY is `create`).
+- **Gate every sensitive endpoint by role.** New REST routes and WebSockets
+  must be reachable only at the right role (viewer/operator/admin) - the
+  `auth_gate` middleware and the per-WS `_ws_user` check in `app.py` are the
+  boundary. Viewers must never reach shells, files, kubectl, logs, Secrets or
+  any write. UI hiding is convenience, not enforcement.
 - **Frontend stays dependency-free.** Vanilla ES modules, no build step,
   no CDN loads (CSP is `default-src 'self'`); vendor new libraries into
   `static/vendor/` only with good reason.

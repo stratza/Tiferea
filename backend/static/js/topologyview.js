@@ -71,8 +71,8 @@ export function openTopology() {
   const toolbar = el('div', { class: 'term-toolbar' },
     el('span', { class: 'target-label', text: 'Topology' }), nsSel,
     el('label', {}, mountsBox, 'mounts'),
-    el('button', { text: 'refresh refresh', onclick: refresh }),
-    el('button', { text: 'fit', title: 'fit graph to view (or double-click the map)',
+    el('button', { text: '🔄 refresh', onclick: refresh }),
+    el('button', { text: '⤢ fit', title: 'fit graph to view (or double-click the map)',
                    onclick: () => resetView?.() }),
     status,
     el('span', { class: 'muted', text: 'drag to pan · wheel to zoom' }));
@@ -223,7 +223,7 @@ export function openTopology() {
     svgHost.replaceChildren(svg);
   }
 
-  addTab({ id: TAB_ID, title: 'Topology', kind: 'topology', el: root, restore: { kind: 'topology' } });
+  addTab({ id: TAB_ID, title: '🕸 Topology', kind: 'topology', el: root, restore: { kind: 'topology' } });
   fillNamespaces();
   refresh();
 }

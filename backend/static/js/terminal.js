@@ -97,21 +97,21 @@ export function openTerminal(namespace, pod, container, opts = {}) {
   // Owner-only share toggle; collaborators get a leave button instead.
   const shareBtn = el('button', { class: 'share-btn', title: 'share this session with other operators',
     onclick: () => { shared = !shared; sendCtrl({ type: 'share', on: shared }); renderBanner(); updateShareBtn(); } },
-    'share');
+    '🤝 share');
   function updateShareBtn() {
-    shareBtn.textContent = shared ? 'sharing' : 'share';
+    shareBtn.textContent = shared ? '🤝 sharing' : '🤝 share';
     shareBtn.classList.toggle('active', shared);
   }
 
   const ownerCtrls = [
-    el('button', { text: '+', title: 'open another session in this container',
+    el('button', { text: '➕', title: 'open another session in this container',
                    onclick: () => openTerminal(namespace, pod, container, { ...opts, join: null, fresh: true }) }),
     shareBtn,
-    el('button', { text: 'kill', class: 'danger', title: 'terminate this session',
+    el('button', { text: '🛑 kill', class: 'danger', title: 'terminate this session',
                    onclick: () => { deliberate = true; sendCtrl({ type: 'close' }); } }),
   ];
   const joinCtrls = [
-    el('button', { text: 'leave', class: 'danger', title: 'leave this shared session',
+    el('button', { text: '🚪 leave', class: 'danger', title: 'leave this shared session',
                    onclick: () => { deliberate = true; closeTab(tabId); } }),
   ];
 
@@ -306,7 +306,7 @@ export function openTerminal(namespace, pod, container, opts = {}) {
 
   addTab({
     id: tabId,
-    title: `${joining ? 'join' : 'shell'} ${container}`,
+    title: `${joining ? '🔗' : '⌨'} ${container}`,
     kind: 'terminal',
     el: root,
     restore: joining ? null : { kind: 'terminal', ns: namespace, pod, ctr: container },

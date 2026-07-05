@@ -14,7 +14,7 @@ export function openRecordings() {
   const root = el('div', { class: 'tools-root' },
     el('div', { class: 'term-toolbar' },
       el('span', { class: 'target-label', text: 'Session recordings' }),
-      el('button', { text: 'refresh', onclick: load })),
+      el('button', { text: '🔄 refresh', onclick: load })),
     el('div', { class: 'rec-split' }, list, player));
 
   async function load() {
@@ -39,7 +39,7 @@ export function openRecordings() {
         if (!window.confirm(`delete recording ${r.name}?`)) return;
         try { await api(`/api/recordings/${encodeURIComponent(r.name)}`, { method: 'DELETE' }); load(); }
         catch (err) { toast(`delete failed: ${err.message}`, 'error'); }
-      } }, 'del'))));
+      } }, '🗑'))));
   }
 
   let current = null;   // active player controller
@@ -52,7 +52,7 @@ export function openRecordings() {
     current = buildPlayer(rec, text, player);
   }
 
-  addTab({ id: TAB_ID, title: 'Recordings', kind: 'tools', el: root,
+  addTab({ id: TAB_ID, title: '🎬 Recordings', kind: 'tools', el: root,
            restore: { kind: 'recordings' },
            onClose: () => current?.stop() });
   load();
@@ -89,7 +89,7 @@ function buildPlayer(rec, text, host) {
 
   const timeLabel = el('span', { class: 'muted', text: `0:00 / ${fmt(duration)}` });
   const bar = el('div', { class: 'rec-bar' }, el('div', { class: 'rec-bar-fill' }));
-  const playBtn = el('button', { onclick: toggle }, 'play');
+  const playBtn = el('button', { onclick: toggle }, '▶ play');
   const speedBtn = el('button', { title: 'playback speed', onclick: () => {
     speed = speed >= 4 ? 1 : speed * 2;
     speedBtn.textContent = `${speed}x`;
@@ -100,7 +100,7 @@ function buildPlayer(rec, text, host) {
   host.replaceChildren(
     el('div', { class: 'rec-controls' },
       playBtn,
-      el('button', { title: 'restart', onclick: () => seek(0) }, 'restart'),
+      el('button', { title: 'restart', onclick: () => seek(0) }, '⏮ restart'),
       speedBtn, timeLabel, bar,
       el('span', { class: 'rec-title muted', text: rec.title || rec.name })),
     termHost);
@@ -147,12 +147,12 @@ function buildPlayer(rec, text, host) {
 
   function start() {
     if (idx >= events.length) { renderUpTo(0); }
-    playing = true; playBtn.textContent = 'pause';
+    playing = true; playBtn.textContent = '⏸ pause';
     baseWall = performance.now(); baseCast = idx ? events[idx - 1][0] : 0;
     raf = requestAnimationFrame(loop);
   }
   function pause() {
-    playing = false; playBtn.textContent = 'play';
+    playing = false; playBtn.textContent = '▶ play';
     if (raf) cancelAnimationFrame(raf);
   }
   function toggle() { playing ? pause() : start(); }

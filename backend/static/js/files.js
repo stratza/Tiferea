@@ -69,23 +69,23 @@ export function openFiles(namespace, pod, container, startPath = '/') {
 
   const toolbar = el('div', { class: 'fs-toolbar' },
     el('span', { class: 'target-label', text: target }),
-    el('button', { text: 'up', onclick: () => load(parentOf(path)) }),
-    el('button', { text: 'refresh', title: 'refresh', onclick: () => load(path) }),
+    el('button', { text: '⬆ up', onclick: () => load(parentOf(path)) }),
+    el('button', { text: '🔄', title: 'refresh', onclick: () => load(path) }),
     pathInput,
-    el('button', { text: 'bookmark', title: 'bookmark this path', onclick: () => {
+    el('button', { text: '⭐', title: 'bookmark this path', onclick: () => {
       const b = bookmarks();
       if (!b.includes(path)) { b.push(path); localStorage.setItem(bookmarkKey, JSON.stringify(b)); }
       renderBookmarks();
       toast(`bookmarked ${path}`, 'info', 2000);
     } }),
     bookmarkSel,
-    el('button', { text: '+ dir', onclick: async () => {
+    el('button', { text: '📂 dir', onclick: async () => {
       const name = window.prompt('new directory name:');
       if (!name) return;
       await op({ op: 'mkdir', path: joinPath(path, name) });
     } }),
-    el('button', { text: 'upload', onclick: () => fileInput.click() }),
-    el('a', { text: 'get dir as tar.gz', class: 'button',
+    el('button', { text: '📤 upload', onclick: () => fileInput.click() }),
+    el('a', { text: '⬇ dir', class: 'button',
               href: `${base}/download?path=${encodeURIComponent(path)}&dir=1&${qsClient()}` }),
     fileInput);
 
@@ -164,23 +164,23 @@ export function openFiles(namespace, pod, container, startPath = '/') {
       entry.linkTarget ? el('span', { class: 'muted', text: ` → ${entry.linkTarget}` }) : null);
     const actions = el('td', { class: 'fs-actions' },
       entry.type !== 'dir'
-        ? el('a', { text: 'get', title: 'download', class: 'button',
+        ? el('a', { text: '⬇', title: 'download', class: 'button',
                     href: `${base}/download?path=${encodeURIComponent(full)}&${qsClient()}` })
-        : el('a', { text: 'get', title: 'download as tar.gz', class: 'button',
+        : el('a', { text: '⬇', title: 'download as tar.gz', class: 'button',
                     href: `${base}/download?path=${encodeURIComponent(full)}&dir=1&${qsClient()}` }),
       entry.type === 'file'
-        ? el('button', { text: 'view', title: 'view', onclick: () => openViewer(full) }) : null,
+        ? el('button', { text: '👁', title: 'view', onclick: () => openViewer(full) }) : null,
       entry.type === 'file'
-        ? el('button', { text: 'edit', title: 'edit', onclick: () => openEditor(full) }) : null,
-      el('button', { text: 'ren', title: 'rename', onclick: () => {
+        ? el('button', { text: '✏', title: 'edit', onclick: () => openEditor(full) }) : null,
+      el('button', { text: '🏷', title: 'rename', onclick: () => {
         const to = window.prompt(`rename ${entry.name} to (full path):`, full);
         if (to && to !== full) op({ op: 'rename', path: full, to });
       } }),
-      el('button', { text: 'chmod', title: 'chmod', onclick: () => {
+      el('button', { text: '🔐', title: 'chmod', onclick: () => {
         const mode = window.prompt(`chmod ${entry.name} (e.g. 644, u+x):`, '');
         if (mode) op({ op: 'chmod', path: full, mode });
       } }),
-      el('button', { text: 'del', title: 'delete', class: 'danger', onclick: () => {
+      el('button', { text: '🗑', title: 'delete', class: 'danger', onclick: () => {
         if (window.confirm(`delete ${full}${entry.type === 'dir' ? ' (recursively)' : ''}?`)) {
           op({ op: 'delete', path: full });
         }
@@ -249,7 +249,7 @@ export function openFiles(namespace, pod, container, startPath = '/') {
       editorHost.replaceChildren(
         el('div', { class: 'editor-bar' },
           el('span', { class: 'target-label', text: `${p} (read-only)` }),
-          el('button', { text: 'edit', onclick: () => openEditor(p) }),
+          el('button', { text: '✏ edit', onclick: () => openEditor(p) }),
           el('button', { text: 'close', onclick: closeOverlay })),
         highlight(r.text));
       editorHost.classList.remove('hidden');
@@ -303,7 +303,7 @@ export function openFiles(namespace, pod, container, startPath = '/') {
     editorHost.replaceChildren(
       el('div', { class: 'editor-bar' },
         el('span', { class: 'target-label', text: p }),
-        el('button', { text: 'save', onclick: () => save(false) }),
+        el('button', { text: '💾 save', onclick: () => save(false) }),
         el('button', { text: 'close', onclick: closeOverlay })),
       warn, area);
     editorHost.classList.remove('hidden');
@@ -318,7 +318,7 @@ export function openFiles(namespace, pod, container, startPath = '/') {
 
   addTab({
     id: tabId,
-    title: `files ${container}`,
+    title: `📁 ${container}`,
     kind: 'files',
     el: root,
     restore: { kind: 'files', ns: namespace, pod, ctr: container },
