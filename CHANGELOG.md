@@ -4,7 +4,7 @@ All notable changes to TifEra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.3.0] - 2026-07-14
+## [0.3.1] - 2026-07-14
 
 ### Changed
 - All visible control labels (buttons, tooltips, dropdown options, table
@@ -211,8 +211,8 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/stratza/tiferea/compare/v0.2.0...v0.3.0
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/stratza/tiferea/compare/v0.2.0...v0.3.1
 [0.2.0]: https://github.com/stratza/tiferea/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/stratza/tiferea/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/stratza/tiferea/compare/v0.1.1...v0.1.2
