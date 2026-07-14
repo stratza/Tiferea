@@ -4,6 +4,27 @@ All notable changes to TifEra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] - 2026-07-14
+
+### Added
+- **Metrics dashboard upgrade.** Headline cards on the Metrics tab (cluster
+  CPU/memory used vs allocatable with meters, pod/container counts, and
+  governance counters for containers missing requests or limits). A new
+  dependency-free time-series chart component (`chart.js`: axes, hover
+  crosshair + tooltip, dashed request/limit reference lines, theme-aware)
+  replaces the bare pod-panel sparklines. The container table gained a filter
+  box, sorting by usage or % of request/limit, near-limit row highlighting,
+  "no req"/"no lim" badges, and click-to-expand 60-minute CPU/memory history
+  charts per container (pod details moved to a dedicated button).
+
+### Fixed
+- **Cramped Add-user form in the admin Users dialog** - three fields plus the
+  button were squeezed into one row of the 520px modal, and the text inputs
+  (which keep an intrinsic ~195px width) overflowed their shrunken labels
+  until the boxes visually touched. The form is now a two-column grid
+  (Username | Password, Role | Add) and `.auth-field` inputs are pinned to
+  their label's width so they can never overflow it.
+
 ## [0.3.1] - 2026-07-14
 
 ### Changed
@@ -211,7 +232,8 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/stratza/tiferea/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/stratza/tiferea/compare/v0.2.0...v0.3.1
 [0.2.0]: https://github.com/stratza/tiferea/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/stratza/tiferea/compare/v0.1.2...v0.1.3

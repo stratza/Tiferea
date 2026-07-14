@@ -1,4 +1,4 @@
-// Pod detail panel: containers with live usage + sparklines,
+// Pod detail panel: containers with live usage + usage-history charts,
 // requests/limits comparison, opt-in disk usage, events
 //, YAML view and restart quick action.
 
@@ -9,25 +9,7 @@ import { addTab, findTab, focusOrBlink } from './tabs.js';
 import { openTerminal } from './terminal.js';
 import { openFiles } from './files.js';
 import { openLogs } from './logsview.js';
-
-function sparkline(canvas, samples, idx, color) {
-  const ctx = canvas.getContext('2d');
-  const { width: w, height: h } = canvas;
-  ctx.clearRect(0, 0, w, h);
-  if (!samples.length) return;
-  const values = samples.map((s) => s[idx]);
-  const max = Math.max(...values, 1e-9);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  samples.forEach((s, i) => {
-    const x = (i / Math.max(samples.length - 1, 1)) * (w - 2) + 1;
-    const y = h - 2 - (s[idx] / max) * (h - 6);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-}
+import { timeChart } from './chart.js';
 
 function usageCell(usage, requestQ, limitQ, fmt, toNumber) {
   const cell = el('span');
@@ -60,7 +42,7 @@ export function openPod(pod) {
   const dfBox = el('div', { class: 'df-box' });
   const eventsBox = el('div', { class: 'events-box' });
   const yamlBox = el('pre', { class: 'yaml-box hidden' });
-  const sparks = new Map();  // container -> {cpu: canvas, mem: canvas}
+  const sparks = new Map();  // container -> {cpu: chart, mem: chart, spec}
 
   const root = el('div', { class: 'pod-root' }, header,
     el('h3', { text: 'Containers' }), containersBox,
@@ -111,13 +93,18 @@ export function openPod(pod) {
       } }) : null);
   }
 
+  function destroySparks() {
+    for (const s of sparks.values()) { s.cpu.destroy(); s.mem.destroy(); }
+    sparks.clear();
+  }
+
   function renderContainers(p) {
     if (!p) { containersBox.textContent = 'pod no longer exists'; return; }
-    sparks.clear();
+    destroySparks();
     const rows = p.containers.map((c) => {
-      const cpuCanvas = el('canvas', { width: 160, height: 36, class: 'spark' });
-      const memCanvas = el('canvas', { width: 160, height: 36, class: 'spark' });
-      sparks.set(c.name, { cpu: cpuCanvas, mem: memCanvas });
+      const cpuChart = timeChart({ fmtY: fmtCpu, height: 44, compact: true });
+      const memChart = timeChart({ fmtY: fmtBytes, height: 44, compact: true });
+      sparks.set(c.name, { cpu: cpuChart, mem: memChart, spec: c });
       const usage = state.metrics.pods[`${namespace}/${name}/${c.name}`] || {};
       return el('tr', {},
         el('td', {}, el('span', { class: `dot state-${c.state}` }), ` ${c.name}`),
@@ -125,7 +112,7 @@ export function openPod(pod) {
         el('td', { text: `${c.state}${c.ready ? '' : ' (not ready)'} · ${c.restarts}↻` }),
         el('td', {}, usageCell(usage.cpu, c.requests?.cpu, c.limits?.cpu, fmtCpu, cpuToMillicores)),
         el('td', {}, usageCell(usage.mem, c.requests?.memory, c.limits?.memory, fmtBytes, memToBytes)),
-        el('td', {}, cpuCanvas, memCanvas),
+        el('td', {}, el('div', { class: 'chart-pair compact' }, cpuChart.el, memChart.el)),
         el('td', { class: 'fs-actions' }, ...(canOperate() ? [
           el('button', { text: '⌨', title: 'Shell', onclick: () => openTerminal(namespace, name, c.name) }),
           el('button', { text: '📜', title: 'Logs', onclick: () => openLogs(namespace, name, [c.name]) }),
@@ -145,11 +132,17 @@ export function openPod(pod) {
   }
 
   async function drawSparks() {
-    for (const [cname, canvases] of sparks) {
+    const ref = (value, label, tone) => (value !== null ? { label, value, tone } : null);
+    for (const [cname, s] of sparks) {
       try {
         const r = await api(`/api/metrics/history?target=${encodeURIComponent(`${namespace}/${name}/${cname}`)}`);
-        sparkline(canvases.cpu, r.samples, 1, '#9a9a9e');
-        sparkline(canvases.mem, r.samples, 2, '#6a6a6e');
+        if (!sparks.has(cname) || sparks.get(cname) !== s) continue;  // panel re-rendered meanwhile
+        s.cpu.set(r.samples.map((x) => [x[0], x[1]]),
+          [ref(cpuToMillicores(s.spec.requests?.cpu), 'request', 'warn'),
+           ref(cpuToMillicores(s.spec.limits?.cpu), 'limit', 'bad')].filter(Boolean));
+        s.mem.set(r.samples.map((x) => [x[0], x[2]]),
+          [ref(memToBytes(s.spec.requests?.memory), 'request', 'warn'),
+           ref(memToBytes(s.spec.limits?.memory), 'limit', 'bad')].filter(Boolean));
       } catch { /* metrics may be unavailable */ }
     }
   }
@@ -196,7 +189,8 @@ export function openPod(pod) {
   on('metrics', () => { if (findTab(tabId)) rerender(); });
 
   addTab({ id: tabId, title: `📦 ${name}`, kind: 'pod', el: root,
-           restore: { kind: 'pod', ns: namespace, name } });
+           restore: { kind: 'pod', ns: namespace, name },
+           onClose: destroySparks });
   rerender();
   loadEvents();
 }

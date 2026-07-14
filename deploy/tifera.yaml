@@ -162,7 +162,7 @@ spec:
         - name: tifera
           # Local/source build. For a published release use the pinned
           # manifest from GitHub Releases (image ghcr.io/<owner>/tifera:<ver>).
-          image: tifera:0.3.1
+          image: tifera:0.3.2
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

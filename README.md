@@ -7,7 +7,7 @@
 <br/>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/stratza/tiferea/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI&labelColor=1a1a1a)](https://github.com/stratza/tiferea/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.3.1-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.3.2-6e6e6e?style=for-the-badge&labelColor=1a1a1a)](CHANGELOG.md)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-%E2%89%A5%201.27-4a4a4a?style=for-the-badge&logo=kubernetes&logoColor=white&labelColor=1a1a1a)](deploy/)
 [![License](https://img.shields.io/badge/license-MIT-9e9e9e?style=for-the-badge&labelColor=1a1a1a)](LICENSE)
 
@@ -57,16 +57,16 @@ Two invariants define it:
 **From a published release** (multi-arch image on GHCR):
 
 ```sh
-kubectl apply -f https://github.com/stratza/tiferea/releases/latest/download/tifera-0.3.1.yaml
-# …or Helm:  helm install tifera oci://ghcr.io/stratza/charts/tifera --version 0.3.1 -n tifera --create-namespace
+kubectl apply -f https://github.com/stratza/tiferea/releases/latest/download/tifera-0.3.2.yaml
+# …or Helm:  helm install tifera oci://ghcr.io/stratza/charts/tifera --version 0.3.2 -n tifera --create-namespace
 kubectl -n tifera port-forward svc/tifera 8080:80   # → http://localhost:8080
 ```
 
 **From source** (build into a local cluster):
 
 ```sh
-docker build -t tifera:0.3.1 backend
-kind load docker-image tifera:0.3.1   # or: k3d image import tifera:0.3.1
+docker build -t tifera:0.3.2 backend
+kind load docker-image tifera:0.3.2   # or: k3d image import tifera:0.3.2
 kubectl apply -f deploy/tifera.yaml
 kubectl -n tifera port-forward svc/tifera 8080:80
 ```
@@ -97,10 +97,10 @@ Helm exposes these via `values.yaml` (`config.*`, `persistence.*`, `rbac.*`, `ne
 
 At runtime TifEra pulls nothing (kubectl + xterm.js are baked in); only the build and image distribution need internet.
 
-1. **Build** on a connected machine: `docker build -t tifera:0.3.1 backend` (add `--build-arg KUBECTL_VERSION=v1.31.4` to pin kubectl; `docker buildx --platform ...` for other arches).
+1. **Build** on a connected machine: `docker build -t tifera:0.3.2 backend` (add `--build-arg KUBECTL_VERSION=v1.31.4` to pin kubectl; `docker buildx --platform ...` for other arches).
 2. **Move it in** - push to an internal registry, or `docker save … | ` copy `| sudo k3s ctr images import …` (or `kind load image-archive`).
 3. **Mirror the one runtime image** - the debug container (default `busybox:1.36`); mirror it and set `TIFERA_DEBUG_IMAGE` / Helm `config.debugImage`, or skip it.
-4. **Deploy** with the image rewritten: `sed 's#image: tifera:0.3.1#image: registry.internal/tifera:0.3.1#' deploy/tifera.yaml | kubectl apply -f -`, or Helm `--set image.repository=…,image.tag=0.3.1`.
+4. **Deploy** with the image rewritten: `sed 's#image: tifera:0.3.2#image: registry.internal/tifera:0.3.2#' deploy/tifera.yaml | kubectl apply -f -`, or Helm `--set image.repository=…,image.tag=0.3.2`.
 </details>
 
 <details>

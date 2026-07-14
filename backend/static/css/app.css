@@ -287,7 +287,10 @@ body.disconnected::after {
 .auth-card h2 { margin: 4px 0 0; font-size: 16px; font-weight: 600; text-align: center; }
 .auth-sub { margin: 0 0 4px; text-align: center; font-size: 12.5px; line-height: 1.5; }
 .auth-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
-.auth-field input, .auth-field select { font-size: 14px; padding: 8px 10px; }
+.auth-field input, .auth-field select {
+  font-size: 14px; padding: 8px 10px;
+  width: 100%; min-width: 0;   /* fill the label; never overflow a shrunken one */
+}
 .auth-err {
   color: var(--bad); font-size: 12.5px; padding: 6px 10px; border-radius: 8px;
   background: color-mix(in srgb, var(--bad) 12%, var(--bg2));
@@ -321,12 +324,19 @@ body.disconnected::after {
 
 /* user management (reuses the settings modal) */
 .users-list { display: flex; flex-direction: column; }
-.user-row { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--accent-softer); }
+.user-row { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--accent-softer); }
+.user-row:last-child { border-bottom: none; }
 .user-name { flex: 1; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
-.user-row select { min-width: 96px; }
-.user-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
-.user-add .auth-field { flex: 1; min-width: 110px; }
-.user-add > button { flex: none; padding: 8px 14px; }
+.user-row select { min-width: 110px; }
+/* Add-user form: a 2-column grid (Username | Password, then Role | Add) so
+   the fields keep real breathing room in the 520px modal instead of three
+   squeezed into one row. */
+.user-add {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px 14px; align-items: end;
+}
+.user-add .auth-field { min-width: 0; }
+.user-add > button { justify-self: start; padding: 8px 16px; }
 
 /* -- command palette ---------------------------------------------------- */
 #palette {
@@ -681,7 +691,53 @@ button.primary:hover { background: var(--accent-soft); }
 }
 .phase-running { color: var(--ok); }
 .phase-crashloopbackoff, .phase-error, .phase-failed { color: var(--bad); }
-.spark { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; margin-right: 4px; }
+/* headline stat cards on the Metrics tab */
+.metric-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px; margin-top: 10px;
+}
+.mcard {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; min-width: 0;
+}
+.mcard-num { font-size: 22px; font-weight: 300; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.mcard-num.tone-warn { color: var(--warn); }
+.mcard-num.tone-bad { color: var(--bad); }
+.mcard-num.tone-muted { color: var(--muted); }
+.mcard-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.mcard-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--muted); margin-top: 6px;
+}
+.mcard .meter { min-width: 0; height: 6px; margin-top: 8px; }
+
+/* container table: filter/sort bar, risk marks, expandable chart rows */
+.metrics-tablebar { display: flex; gap: 8px; align-items: center; margin: 2px 0 10px; }
+.metrics-tablebar input { width: 260px; }
+.risk-badge {
+  font-size: 10px; border: 1px solid var(--warn); color: var(--warn);
+  border-radius: 5px; padding: 0 5px; margin-left: 6px; white-space: nowrap;
+}
+tr.row-risk td { background: color-mix(in srgb, var(--bad) 7%, transparent); }
+.pct { color: var(--muted); font-size: 11px; }
+tr.chart-row td, tr.chart-row:hover td { background: var(--bg2); padding: 10px 12px 14px; }
+.chart-title {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--muted); margin-bottom: 4px;
+}
+
+/* time-series charts (chart.js component) */
+.chart { position: relative; width: 100%; }
+.chart canvas { display: block; width: 100%; height: 100%; }
+.chart-compact { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; }
+.chart-tip {
+  position: absolute; z-index: 5; pointer-events: none;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+  padding: 2px 8px; font-size: 11px; white-space: nowrap; box-shadow: var(--shadow-sm);
+}
+.chart-pair { display: flex; gap: 14px; }
+.chart-pair > * { flex: 1; min-width: 0; }
+.chart-pair.compact { gap: 8px; min-width: 320px; }
 .usage-ok { color: var(--fg); }
 .usage-warn { color: var(--warn); }
 .usage-over { color: var(--bad); font-weight: 600; }
