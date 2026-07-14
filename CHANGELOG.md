@@ -4,6 +4,29 @@ All notable changes to TifEra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.3] - 2026-07-14
+
+### Changed
+- **Topology rebuilt for large clusters** (a 900-service cluster rendered as
+  an unreadable force-directed hairball). It is now three levels of
+  progressive disclosure: (1) an **overview** of namespace cards with health
+  counts - a cluster-wide graph is never drawn; (2) a per-namespace,
+  **workload-aggregated graph** - pods roll up into their owning workload
+  with a ready/total badge, per-pod Service endpoints collapse into one
+  Service → Workload edge carrying endpoint counts, laid out in deterministic
+  layered columns (stable across refreshes, no physics, no random jitter,
+  barycenter-ordered to keep edges short; unconnected nodes sink to the
+  bottom); (3) a **focus mode** - click a service or workload to isolate its
+  neighborhood and expand the pods behind it (click a pod for details, click
+  a mount for its YAML). Plus search, an "Only problems" filter that reduces
+  every level to unhealthy things and their neighbors, hover highlighting
+  that dims everything but the hovered node's connections, label halos for
+  readability, and unhealthy edges annotated with ready/total endpoint
+  counts. The old 400-node render refusal is gone - it is no longer needed.
+- `/api/topology` now returns the namespace summary (no `namespace` param)
+  or the aggregated per-namespace graph - payloads shrink by roughly the
+  replica count of the cluster.
+
 ## [0.3.2] - 2026-07-14
 
 ### Added
@@ -232,7 +255,8 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/stratza/tiferea/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/stratza/tiferea/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/stratza/tiferea/compare/v0.2.0...v0.3.1
 [0.2.0]: https://github.com/stratza/tiferea/compare/v0.1.3...v0.2.0

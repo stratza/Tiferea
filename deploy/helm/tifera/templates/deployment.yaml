@@ -62,7 +62,7 @@ spec:
             - name: TIFERA_RECONNECT_GRACE
               value: {{ .Values.config.reconnectGraceSeconds | quote }}
             - name: TIFERA_MAX_UPLOAD
-              value: {{ .Values.config.maxUploadBytes | quote }}
+              value: {{ .Values.config.maxUploadBytes | int64 | quote }}
             - name: TIFERA_DEBUG_IMAGE
               value: {{ .Values.config.debugImage | quote }}
             {{- if .Values.config.recordSessions }}

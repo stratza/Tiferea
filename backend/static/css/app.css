@@ -764,18 +764,61 @@ tr.chart-row td, tr.chart-row:hover td { background: var(--bg2); padding: 10px 1
 
 /* -- topology ---------------------------------------------------------------------- */
 .topo-root { display: flex; flex-direction: column; height: 100%; }
-.topo-host { flex: 1; min-height: 0; }
+.topo-host { flex: 1; min-height: 0; overflow: auto; }
 .topo-svg { width: 100%; height: 100%; cursor: grab; touch-action: none; }
 .topo-svg.dragging { cursor: grabbing; }
-.topo-edge { stroke: var(--muted); stroke-width: 1; opacity: 0.4; }
+.topo-edge { fill: none; stroke: var(--muted); stroke-width: 1; opacity: 0.4; }
 .topo-edge.routes { stroke: var(--fg); opacity: 0.5; }
+.topo-edge.owns { opacity: 0.35; }
 .topo-edge.mounts { stroke-dasharray: 3 3; }
 .topo-edge.unhealthy { stroke: var(--bad); stroke-width: 2; opacity: 1; }
-.topo-node circle { stroke: var(--bg); stroke-width: 1.5; }
-.topo-node text { fill: var(--muted); font-size: 10px; text-anchor: middle; }
-.topo-node circle.unhealthy { stroke: var(--bad); stroke-width: 3; }
+.topo-edgelabel { fill: var(--bad); font-size: 9px; font-weight: 600; }
+.topo-colhead {
+  fill: var(--muted); font-size: 11px; font-weight: 600;
+  letter-spacing: .07em; text-transform: uppercase;
+}
+.topo-node circle { fill: var(--muted); stroke: var(--bg); stroke-width: 1.5; }
+.topo-node.focused circle { fill: var(--fg); }
+/* halo keeps labels readable where edges pass underneath */
+.topo-node text {
+  fill: var(--muted); font-size: 10px;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
+}
+.topo-node circle.unhealthy { fill: var(--bad); stroke-width: 1.5; }
 .topo-node.clickable { cursor: pointer; }
 .topo-node.clickable:hover text { fill: var(--fg); }
+/* hovering a node dims everything except its neighborhood */
+.topo-svg.hovering .topo-node:not(.hl),
+.topo-svg.hovering .topo-edge:not(.hl),
+.topo-svg.hovering .topo-edgelabel:not(.hl) { opacity: 0.14; }
+.topo-node.hl text { fill: var(--fg); }
+
+/* namespace overview cards */
+.topo-cards {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px; padding: 14px 18px;
+}
+.topo-card {
+  text-align: left; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+.topo-card:hover { border-color: var(--muted); background: var(--accent-soft); }
+.topo-card.bad { border-color: color-mix(in srgb, var(--bad) 45%, var(--border)); }
+.topo-card-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+.topo-card-counts { font-size: 11px; color: var(--muted); }
+.topo-card-issues { font-size: 11px; }
+.topo-card-issues.bad { color: var(--bad); font-weight: 600; }
+.topo-card-issues.ok { color: var(--muted); }
+
+/* focus chip in the toolbar */
+.focus-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--border); border-radius: 99px; padding: 1px 4px 1px 9px;
+  font-size: 11px; background: var(--accent-soft); white-space: nowrap;
+}
+.focus-chip-x { border: none; padding: 0 5px; font-size: 13px; color: var(--muted); }
+.focus-chip-x:hover { color: var(--fg); background: none; }
 
 /* -- toasts --------------------------------------------------------------------------- */
 #toasts {

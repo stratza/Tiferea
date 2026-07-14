@@ -1,7 +1,15 @@
-"""Topology graph - Services → Endpoints → Pods, workloads → owned
-Pods, and (toggleable) ConfigMap/Secret mounts as edges. Computed on demand
-from live API state; only object *names* are exposed, never secret
-values.
+"""Topology - readable at scale by aggregating instead of drawing everything.
+
+Two shapes, both computed on demand from live API state:
+  summary() - cluster-wide per-namespace counts for the overview cards
+              (a 900-service cluster is never rendered as one graph).
+  graph(ns) - a per-namespace, workload-aggregated graph: pods are rolled up
+              into their owning workload (ready/total), and per-pod Service
+              endpoints collapse into one Service -> Workload edge carrying
+              endpoint counts. Pod details ride along as workload children
+              for the focus view.
+
+Only object *names* are exposed, never secret values.
 """
 
 import logging
@@ -20,42 +28,93 @@ def _pod_healthy(pod) -> bool:
     return bool(statuses) and all(s.ready for s in statuses)
 
 
-def build(namespace: str | None = None, include_mounts: bool = False) -> dict:
+def _owner(pod) -> tuple[str, str] | None:
+    """Controlling workload as (kind, name), or None for a bare pod."""
+    ref = next((o for o in (pod.metadata.owner_references or []) if o.controller), None)
+    if not ref:
+        return None
+    kind, name = ref.kind, ref.name
+    if kind == "ReplicaSet" and "-" in name:
+        # Pod-template-hash heuristic: show the Deployment, not the RS.
+        kind, name = "Deployment", name.rsplit("-", 1)[0]
+    return kind, name
+
+
+def _ready_endpoint_names(endpoints) -> set[tuple[str, str]]:
+    """(namespace, name) of Endpoints objects with at least one ready address."""
+    ready = set()
+    for ep in endpoints:
+        for subset in (ep.subsets or []):
+            if subset.addresses:
+                ready.add((ep.metadata.namespace, ep.metadata.name))
+                break
+    return ready
+
+
+def summary() -> dict:
+    """Cluster-wide per-namespace counts for the topology overview cards."""
     v1 = client.CoreV1Api()
-    if namespace:
-        pods = v1.list_namespaced_pod(namespace).items
-        services = v1.list_namespaced_service(namespace).items
-        endpoints = v1.list_namespaced_endpoints(namespace).items
-    else:
-        pods = v1.list_pod_for_all_namespaces().items
-        services = v1.list_service_for_all_namespaces().items
-        endpoints = v1.list_endpoints_for_all_namespaces().items
+    pods = v1.list_pod_for_all_namespaces().items
+    services = v1.list_service_for_all_namespaces().items
+    endpoints = v1.list_endpoints_for_all_namespaces().items
+
+    stats: dict[str, dict] = {}
+
+    def ns_stat(ns: str) -> dict:
+        return stats.setdefault(ns, {
+            "name": ns, "services": 0, "workloads": 0, "pods": 0,
+            "unhealthyPods": 0, "unhealthyServices": 0})
+
+    workloads_seen: set[tuple] = set()
+    for pod in pods:
+        st = ns_stat(pod.metadata.namespace)
+        st["pods"] += 1
+        if not _pod_healthy(pod):
+            st["unhealthyPods"] += 1
+        owner = _owner(pod) or ("Pod", pod.metadata.name)
+        key = (pod.metadata.namespace, *owner)
+        if key not in workloads_seen:
+            workloads_seen.add(key)
+            st["workloads"] += 1
+
+    ready = _ready_endpoint_names(endpoints)
+    for svc in services:
+        ns, name = svc.metadata.namespace, svc.metadata.name
+        st = ns_stat(ns)
+        st["services"] += 1
+        if svc.spec.selector and (ns, name) not in ready:
+            st["unhealthyServices"] += 1
+
+    return {"namespaces": sorted(stats.values(), key=lambda s: s["name"])}
+
+
+def graph(namespace: str, include_mounts: bool = False) -> dict:
+    """Workload-aggregated graph for one namespace."""
+    v1 = client.CoreV1Api()
+    pods = v1.list_namespaced_pod(namespace).items
+    services = v1.list_namespaced_service(namespace).items
+    endpoints = v1.list_namespaced_endpoints(namespace).items
 
     nodes: dict[str, dict] = {}
-    edges: list[dict] = []
-
-    def add(node_id: str, **attrs) -> None:
-        nodes.setdefault(node_id, {"id": node_id, **attrs})
+    pod_workload: dict[str, str] = {}      # pod name -> workload node id
+    mount_edges: set[tuple[str, str]] = set()
 
     for pod in pods:
-        ns, name = pod.metadata.namespace, pod.metadata.name
+        name = pod.metadata.name
         healthy = _pod_healthy(pod)
-        pod_id = f"pod:{ns}/{name}"
-        add(pod_id, kind="Pod", namespace=ns, name=name, healthy=healthy,
-            phase=pod.status.phase or "Unknown",
-            containers=[c.name for c in (pod.spec.containers or [])])
-
-        owner = next((o for o in (pod.metadata.owner_references or []) if o.controller), None)
-        if owner:
-            kind, oname = owner.kind, owner.name
-            if kind == "ReplicaSet" and "-" in oname:
-                # Pod-template-hash heuristic: show the Deployment, not the RS.
-                kind, oname = "Deployment", oname.rsplit("-", 1)[0]
-            wid = f"workload:{ns}/{kind}/{oname}"
-            add(wid, kind=kind, namespace=ns, name=oname, healthy=True)
-            edges.append({"from": wid, "to": pod_id, "kind": "owns", "healthy": healthy})
-            if not healthy:
-                nodes[wid]["healthy"] = False
+        kind, wname = _owner(pod) or ("Pod", name)
+        wid = f"workload:{namespace}/{kind}/{wname}"
+        node = nodes.setdefault(wid, {
+            "id": wid, "kind": kind, "namespace": namespace, "name": wname,
+            "ready": 0, "total": 0, "healthy": True, "pods": []})
+        node["total"] += 1
+        if healthy:
+            node["ready"] += 1
+        else:
+            node["healthy"] = False
+        node["pods"].append({"name": name, "healthy": healthy,
+                             "phase": pod.status.phase or "Unknown"})
+        pod_workload[name] = wid
 
         if include_mounts:
             for vol in (pod.spec.volumes or []):
@@ -65,33 +124,53 @@ def build(namespace: str | None = None, include_mounts: bool = False) -> dict:
                 elif vol.secret:
                     ref = ("Secret", vol.secret.secret_name)
                 if ref and ref[1]:
-                    cid = f"{ref[0].lower()}:{ns}/{ref[1]}"
-                    add(cid, kind=ref[0], namespace=ns, name=ref[1], healthy=True)
-                    edges.append({"from": pod_id, "to": cid, "kind": "mounts",
-                                  "healthy": True})
+                    cid = f"{ref[0].lower()}:{namespace}/{ref[1]}"
+                    nodes.setdefault(cid, {"id": cid, "kind": ref[0],
+                                           "namespace": namespace, "name": ref[1],
+                                           "healthy": True})
+                    mount_edges.add((wid, cid))
 
-    ep_index = {(e.metadata.namespace, e.metadata.name): e for e in endpoints}
+    # Per-pod endpoint addresses collapse into Service -> Workload edges.
+    ep_index = {e.metadata.name: e for e in endpoints}
+    routes: dict[tuple[str, str], dict] = {}   # (svc_id, wid) -> counts
     for svc in services:
-        ns, name = svc.metadata.namespace, svc.metadata.name
-        svc_id = f"svc:{ns}/{name}"
-        add(svc_id, kind="Service", namespace=ns, name=name, healthy=True,
-            clusterIp=svc.spec.cluster_ip or "")
+        name = svc.metadata.name
+        svc_id = f"svc:{namespace}/{name}"
+        nodes[svc_id] = {"id": svc_id, "kind": "Service", "namespace": namespace,
+                         "name": name, "healthy": True,
+                         "clusterIp": svc.spec.cluster_ip or ""}
         any_ready = False
-        ep = ep_index.get((ns, name))
+        ep = ep_index.get(name)
         for subset in (ep.subsets or []) if ep else []:
-            for addr in (subset.addresses or []):
-                if addr.target_ref and addr.target_ref.kind == "Pod":
-                    edges.append({"from": svc_id, "to": f"pod:{ns}/{addr.target_ref.name}",
-                                  "kind": "routes", "healthy": True})
+            addrs = ([(a, True) for a in (subset.addresses or [])]
+                     + [(a, False) for a in (subset.not_ready_addresses or [])])
+            for addr, is_ready in addrs:
+                tref = addr.target_ref
+                if not tref or tref.kind != "Pod":
+                    continue
+                wid = pod_workload.get(tref.name)
+                if not wid:   # endpoints can briefly reference deleted pods
+                    continue
+                agg = routes.setdefault((svc_id, wid), {"ready": 0, "total": 0})
+                agg["total"] += 1
+                if is_ready:
+                    agg["ready"] += 1
                     any_ready = True
-            for addr in (subset.not_ready_addresses or []):
-                if addr.target_ref and addr.target_ref.kind == "Pod":
-                    # Failing endpoint - highlight the path.
-                    edges.append({"from": svc_id, "to": f"pod:{ns}/{addr.target_ref.name}",
-                                  "kind": "routes", "healthy": False})
         if svc.spec.selector and not any_ready:
             nodes[svc_id]["healthy"] = False
 
-    # Endpoints can briefly reference pods that no longer exist.
-    edges = [e for e in edges if e["from"] in nodes and e["to"] in nodes]
-    return {"nodes": list(nodes.values()), "edges": edges}
+    edges = [{"from": svc_id, "to": wid, "kind": "routes",
+              "ready": agg["ready"], "total": agg["total"],
+              "healthy": agg["ready"] > 0 and agg["ready"] == agg["total"]}
+             for (svc_id, wid), agg in sorted(routes.items())]
+    edges += [{"from": wid, "to": cid, "kind": "mounts", "healthy": True}
+              for wid, cid in sorted(mount_edges)]
+
+    for n in nodes.values():
+        if "pods" in n:
+            n["pods"].sort(key=lambda p: p["name"])
+
+    # Stable ordering -> stable layout across refreshes.
+    return {"namespace": namespace,
+            "nodes": sorted(nodes.values(), key=lambda n: (n["kind"], n["name"])),
+            "edges": edges}

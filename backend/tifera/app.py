@@ -341,8 +341,11 @@ def api_metrics_history(target: str):
 
 @app.get("/api/topology")
 def api_topology(namespace: str = "", mounts: int = 0):
+    # No namespace -> the per-namespace overview; with one -> its graph.
     try:
-        return topology.build(namespace or None, include_mounts=bool(mounts))
+        if namespace:
+            return topology.graph(namespace, include_mounts=bool(mounts))
+        return topology.summary()
     except k8s.ApiException as exc:
         raise HTTPException(status_code=502,
                             detail=f"K8s API error: {exc.reason} (HTTP {exc.status})")
