@@ -23,13 +23,13 @@ export function openDescribe(kind, namespace, name) {
   let editing = false;
 
   function setToolbar() {
-    const btns = [el('button', { text: '🔄', title: 'reload', onclick: load })];
+    const btns = [el('button', { text: '🔄', title: 'Reload', onclick: load })];
     if (editable && !editing) {
-      btns.push(el('button', { text: '✏ edit', title: 'edit & apply YAML', onclick: startEdit }));
+      btns.push(el('button', { text: '✏ Edit', title: 'Edit & apply YAML', onclick: startEdit }));
     } else if (editing) {
       btns.push(
-        el('button', { text: '✅ apply', class: 'primary', title: 'apply the edited YAML', onclick: apply }),
-        el('button', { text: '✖ cancel', onclick: cancel }));
+        el('button', { text: '✅ Apply', class: 'primary', title: 'Apply the edited YAML', onclick: apply }),
+        el('button', { text: '✖ Cancel', onclick: cancel }));
     }
     toolbar.replaceChildren(
       el('span', { class: 'target-label', text: `${kind} · ${namespace}/${name}` }),

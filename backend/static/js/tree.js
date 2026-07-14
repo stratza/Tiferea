@@ -121,9 +121,9 @@ function renderBulkBar() {
   bar.classList.remove('hidden');
   bar.replaceChildren(
     el('span', { class: 'bulk-count', text: `${selected.size} selected` }),
-    el('button', { class: 'danger', text: '🔄 restart', onclick: bulkRestart }),
-    el('button', { text: '⌨ shells', onclick: bulkShells }),
-    el('button', { text: 'clear', onclick: clearSelection }));
+    el('button', { class: 'danger', text: '🔄 Restart', onclick: bulkRestart }),
+    el('button', { text: '⌨ Shells', onclick: bulkShells }),
+    el('button', { text: 'Clear', onclick: clearSelection }));
 }
 
 // -- controls ------------------------------------------------------------
@@ -152,9 +152,9 @@ function renderControls(counts) {
       seg('issues', 'Issues', counts.issues)),
     el('button', {
       class: `inv-toggle ${hideFinished ? 'active' : ''}`,
-      title: 'hide completed jobs, helm hooks and evicted pods',
+      title: 'Hide completed jobs, helm hooks and evicted pods',
       onclick: toggleFinished,
-    }, hideFinished ? '◉ hiding finished' : '○ show finished',
+    }, hideFinished ? '◉ Hiding finished' : '○ Show finished',
     counts.finished ? el('span', { class: 'seg-count', text: String(counts.finished) }) : null));
 }
 
@@ -167,9 +167,9 @@ function containerChip(p, c) {
   const op = canOperate();
   // Viewers get a static chip (no shell/logs/files/join).
   const actions = op ? el('span', { class: 'chip-actions' },
-    el('button', { title: 'logs', onclick: (e) => { e.stopPropagation(); openLogs(p.namespace, p.name, [c.name]); } }, '📜'),
-    el('button', { title: 'files', onclick: (e) => { e.stopPropagation(); openFiles(p.namespace, p.name, c.name); } }, '📁'),
-    shared ? el('button', { class: 'chip-join', title: `join ${sessionLabel(shared)}'s shared session`,
+    el('button', { title: 'Logs', onclick: (e) => { e.stopPropagation(); openLogs(p.namespace, p.name, [c.name]); } }, '📜'),
+    el('button', { title: 'Files', onclick: (e) => { e.stopPropagation(); openFiles(p.namespace, p.name, c.name); } }, '📁'),
+    shared ? el('button', { class: 'chip-join', title: `Join ${sessionLabel(shared)}'s shared session`,
                             onclick: (e) => { e.stopPropagation(); joinSession(p.namespace, p.name, c.name, shared.sessionId, shared.clientName); } }, '🔗') : null) : null;
   return el(op ? 'button' : 'span', {
     class: `ctr-chip state-${c.state} ${op ? '' : 'readonly'}`,
@@ -188,7 +188,7 @@ function containerChip(p, c) {
 function podCard(p) {
   const self = isSelfPod(p.namespace, p.name);
   const check = canOperate() ? el('input', {
-    type: 'checkbox', class: 'pod-check', title: 'select for bulk actions',
+    type: 'checkbox', class: 'pod-check', title: 'Select for bulk actions',
     checked: selected.has(p.uid) || null,
     onclick: (e) => {
       e.stopPropagation();
@@ -200,9 +200,9 @@ function podCard(p) {
     el('div', { class: 'pod-line' },
       check,
       el('span', { class: `dot ${phaseClass(p)}`, title: p.reason || p.phase }),
-      el('button', { class: 'pod-name', text: p.name, title: 'pod details',
+      el('button', { class: 'pod-name', text: p.name, title: 'Pod details',
                      onclick: () => openPod(p) }),
-      self ? el('span', { class: 'self-badge', title: 'the TifEra console pod', text: 'console' }) : null,
+      self ? el('span', { class: 'self-badge', title: 'The TifEra console pod', text: 'console' }) : null,
       el('span', { class: 'pod-meta muted',
                    text: `${p.reason || p.phase} · ${fmtAge(p.createdAt)}`
                          + (p.restarts ? ` · ${p.restarts}↻` : '') })),

@@ -45,7 +45,7 @@ function usageCell(usage, requestQ, limitQ, fmt, toNumber) {
     el('span', { class: cls, text: fmt(usage) }),
     el('span', { class: 'muted',
                  text: ` / ${requestQ || '–'} / ${limitQ || '–'}` }));
-  cell.title = 'usage / request / limit';
+  cell.title = 'Usage / request / limit';
   return cell;
 }
 
@@ -67,7 +67,7 @@ export function openPod(pod) {
     el('h3', { text: 'Disk usage (sampled via df, opt-in)' }), dfBox,
     el('h3', { text: 'Events' }), eventsBox,
     el('h3', { text: 'Pod YAML' }),
-    el('button', { text: 'load YAML', onclick: async (e) => {
+    el('button', { text: 'Load YAML', onclick: async (e) => {
       try {
         yamlBox.textContent = await api(`/api/pods/${namespace}/${name}/yaml`);
         yamlBox.classList.remove('hidden');
@@ -104,8 +104,8 @@ export function openPod(pod) {
       el('span', { class: `phase phase-${(p?.reason || p?.phase || 'Unknown').toLowerCase()}`,
                    text: p ? (p.reason || p.phase) : 'deleted' }),
       el('span', { class: 'muted', text: p ? ` node ${p.node} · age ${fmtAge(p.createdAt)} · ${p.restarts} restarts` : '' }),
-      canOperate() ? el('button', { text: '🔄 restart pod', class: 'danger', onclick: restart }) : null,
-      canOperate() ? el('button', { text: '📚 merged logs', onclick: () => {
+      canOperate() ? el('button', { text: '🔄 Restart pod', class: 'danger', onclick: restart }) : null,
+      canOperate() ? el('button', { text: '📚 Merged logs', onclick: () => {
         const cp = current();
         if (cp) openLogs(namespace, name, cp.containers.map((c) => c.name));
       } }) : null);
@@ -127,18 +127,18 @@ export function openPod(pod) {
         el('td', {}, usageCell(usage.mem, c.requests?.memory, c.limits?.memory, fmtBytes, memToBytes)),
         el('td', {}, cpuCanvas, memCanvas),
         el('td', { class: 'fs-actions' }, ...(canOperate() ? [
-          el('button', { text: '⌨', title: 'shell', onclick: () => openTerminal(namespace, name, c.name) }),
-          el('button', { text: '📜', title: 'logs', onclick: () => openLogs(namespace, name, [c.name]) }),
-          el('button', { text: '⏮', title: 'previous logs', onclick: () => openLogs(namespace, name, [c.name], { previous: true }) }),
-          el('button', { text: '📁', title: 'files', onclick: () => openFiles(namespace, name, c.name) }),
-          el('button', { text: '💽', title: 'disk usage', onclick: () => loadDf(c.name) }),
-        ] : [el('span', { class: 'muted', text: 'read-only' })])));
+          el('button', { text: '⌨', title: 'Shell', onclick: () => openTerminal(namespace, name, c.name) }),
+          el('button', { text: '📜', title: 'Logs', onclick: () => openLogs(namespace, name, [c.name]) }),
+          el('button', { text: '⏮', title: 'Previous logs', onclick: () => openLogs(namespace, name, [c.name], { previous: true }) }),
+          el('button', { text: '📁', title: 'Files', onclick: () => openFiles(namespace, name, c.name) }),
+          el('button', { text: '💽', title: 'Disk usage', onclick: () => loadDf(c.name) }),
+        ] : [el('span', { class: 'muted', text: 'Read-only' })])));
     });
     containersBox.replaceChildren(el('table', { class: 'fs-table' },
       el('thead', {}, el('tr', {},
-        el('th', { text: 'container' }), el('th', { text: 'image' }),
-        el('th', { text: 'state' }), el('th', { text: 'cpu' }),
-        el('th', { text: 'memory' }), el('th', { text: 'last 60 min (cpu, mem)' }),
+        el('th', { text: 'Container' }), el('th', { text: 'Image' }),
+        el('th', { text: 'State' }), el('th', { text: 'CPU' }),
+        el('th', { text: 'Memory' }), el('th', { text: 'Last 60 min (CPU, mem)' }),
         el('th', { text: '' }))),
       el('tbody', {}, ...rows)));
     drawSparks();
@@ -160,8 +160,8 @@ export function openPod(pod) {
       const r = await api(`/api/fs/${namespace}/${name}/${cname}/df`);
       dfBox.replaceChildren(el('table', { class: 'fs-table' },
         el('thead', {}, el('tr', {},
-          el('th', { text: 'filesystem' }), el('th', { text: 'mount' }),
-          el('th', { text: 'used' }), el('th', { text: 'size' }), el('th', { text: '%' }))),
+          el('th', { text: 'Filesystem' }), el('th', { text: 'Mount' }),
+          el('th', { text: 'Used' }), el('th', { text: 'Size' }), el('th', { text: '%' }))),
         el('tbody', {}, ...r.filesystems.map((f) => el('tr', {},
           el('td', { class: 'mono', text: f.filesystem }),
           el('td', { class: 'mono', text: f.mount }),
@@ -177,7 +177,7 @@ export function openPod(pod) {
     try {
       const r = await api(`/api/events?namespace=${namespace}&name=${name}`);
       eventsBox.replaceChildren(
-        el('button', { text: '🔄 refresh events', onclick: loadEvents }),
+        el('button', { text: '🔄 Refresh events', onclick: loadEvents }),
         ...r.events.slice(0, 50).map((ev) => el('div', {
           class: `event-line ${ev.type === 'Warning' ? 'lvl-warn' : ''}`,
           text: `${ev.time ? new Date(ev.time).toLocaleTimeString() : ''} [${ev.type}] ${ev.reason}: ${ev.message} (×${ev.count})`,

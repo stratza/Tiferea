@@ -174,7 +174,7 @@ function renderBar() {
     },
     el('span', { class: 'tab-title', text: t.title }),
     el('button', {
-      class: 'tab-close', title: 'close',
+      class: 'tab-close', title: 'Close',
       onclick: (e) => { e.stopPropagation(); closeTab(t.id); },
     }, '×'));
   });
@@ -182,9 +182,9 @@ function renderBar() {
   // while a split is active, so a single tab is never accidentally split.
   const showCtl = tabs.length >= 2 || layout > 1;
   const ctl = showCtl ? el('div', { class: 'layout-ctl' },
-    el('span', { class: 'layout-label', text: 'layout' }),
-    layoutBtn(1, '1', 'single (tabs)'),
-    layoutBtn(2, '2', 'split in two'),
-    layoutBtn(4, '4', 'four panes')) : null;
+    el('span', { class: 'layout-label', text: 'Layout' }),
+    layoutBtn(1, '1', 'Single (tabs)'),
+    layoutBtn(2, '2', 'Split in two'),
+    layoutBtn(4, '4', 'Four panes')) : null;
   bar.replaceChildren(...tabEls, ...(ctl ? [ctl] : []));
 }

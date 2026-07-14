@@ -37,7 +37,7 @@ function views() {
     { icon: '🔔', title: 'Events', sub: 'view', run: openEventsFeed },
   ];
   if (canOperate()) {
-    v.unshift({ icon: '⎈', title: 'kubectl', sub: 'in-cluster console', run: openKubectl });
+    v.unshift({ icon: '⎈', title: 'Kubectl', sub: 'in-cluster console', run: openKubectl });
     v.push({ icon: '🧾', title: 'Actions', sub: 'action log', run: openActions },
            { icon: '✂', title: 'Snippets', sub: 'view', run: openSnippets },
            { icon: '🎬', title: 'Recordings', sub: 'session playback', run: openRecordings });

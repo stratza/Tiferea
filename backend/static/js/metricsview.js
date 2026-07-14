@@ -39,8 +39,8 @@ export function openMetrics() {
 
     const nodes = el('table', { class: 'fs-table' },
       el('thead', {}, el('tr', {},
-        el('th', { text: 'node' }), el('th', { text: 'cpu (used / allocatable)' }),
-        el('th', { text: 'memory (used / allocatable)' }))),
+        el('th', { text: 'Node' }), el('th', { text: 'CPU (used / allocatable)' }),
+        el('th', { text: 'Memory (used / allocatable)' }))),
       el('tbody', {}, ...m.nodes.map((n) => el('tr', {},
         el('td', { class: 'mono', text: n.name }),
         el('td', {}, bar(n.cpu, n.cpuAlloc, fmtCpu)),
@@ -54,9 +54,9 @@ export function openMetrics() {
 
     const podsTable = el('table', { class: 'fs-table' },
       el('thead', {}, el('tr', {},
-        el('th', { text: 'container (ns/pod/name)' }),
-        el('th', { text: 'cpu (usage / request / limit)' }),
-        el('th', { text: 'memory (usage / request / limit)' }))),
+        el('th', { text: 'Container (ns/pod/name)' }),
+        el('th', { text: 'CPU (usage / request / limit)' }),
+        el('th', { text: 'Memory (usage / request / limit)' }))),
       el('tbody', {}, ...rows.map(([target, usage]) => {
         const [ns, podName, cname] = target.split('/');
         const pod = podByName(ns, podName);
@@ -83,10 +83,10 @@ export function openMetrics() {
       el('h3', {},
         `Top containers by `,
         el('button', { class: sortBy === 'cpu' ? 'active' : '',
-                       text: 'cpu', onclick: () => { sortBy = 'cpu'; render(); } }),
+                       text: 'CPU', onclick: () => { sortBy = 'cpu'; render(); } }),
         ' / ',
         el('button', { class: sortBy === 'mem' ? 'active' : '',
-                       text: 'memory', onclick: () => { sortBy = 'mem'; render(); } })),
+                       text: 'Memory', onclick: () => { sortBy = 'mem'; render(); } })),
       podsTable);
   }
 }

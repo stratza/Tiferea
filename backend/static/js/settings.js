@@ -30,7 +30,7 @@ function render() {
   box.replaceChildren(
     el('div', { class: 'set-head' },
       el('span', { text: 'Settings' }),
-      el('button', { class: 'set-close', title: 'close', onclick: close }, '×')),
+      el('button', { class: 'set-close', title: 'Close', onclick: close }, '×')),
 
     el('div', { class: 'set-section' },
       el('h4', { text: 'Appearance' }),
@@ -49,7 +49,7 @@ function render() {
         toggle(persistEnabled(), (on) => { setPersist(on); }),
         el('span', { class: 'muted', text: 'reopens the same views next visit' }))),
 
-    el('div', { class: 'set-foot muted', text: `client id ${client.id}` }),
+    el('div', { class: 'set-foot muted', text: `Client id ${client.id}` }),
   );
 }
 

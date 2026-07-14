@@ -123,8 +123,8 @@ export function userMenu(user) {
   return el('span', { class: 'sb-user' },
     el('span', { class: `sb-role role-${user.role}`, text: user.role }),
     el('span', { class: 'sb-username', text: user.username }),
-    admin ? el('button', { class: 'sb-userbtn', title: 'manage users', onclick: openUsers }, 'Users') : null,
-    el('button', { class: 'sb-userbtn', title: 'sign out', onclick: logout }, 'Sign out'));
+    admin ? el('button', { class: 'sb-userbtn', title: 'Manage users', onclick: openUsers }, 'Users') : null,
+    el('button', { class: 'sb-userbtn', title: 'Sign out', onclick: logout }, 'Sign out'));
 }
 
 // -- admin: user management -------------------------------------------------
@@ -140,13 +140,13 @@ export async function openUsers() {
       list.replaceChildren(...r.users.map((u) => el('div', { class: 'user-row' },
         el('span', { class: 'user-name', text: u.username }),
         roleSelect(u),
-        el('button', { class: 'danger', title: 'delete', onclick: () => del(u.username) }, 'delete'))));
+        el('button', { class: 'danger', title: 'Delete this user', onclick: () => del(u.username) }, 'Delete'))));
     } catch (e) { toast(`load users failed: ${e.message}`, 'error'); }
   }
   function roleSelect(u) {
     const sel = el('select', {},
       ...['viewer', 'operator', 'admin'].map((r) =>
-        el('option', { value: r, text: r, selected: u.role === r || null })));
+        el('option', { value: r, text: r[0].toUpperCase() + r.slice(1), selected: u.role === r || null })));
     sel.addEventListener('change', async () => {
       try { await api(`/api/auth/users/${encodeURIComponent(u.username)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -171,19 +171,20 @@ export async function openUsers() {
       load();
     } catch (e) { toast(`add failed: ${e.message}`, 'error'); }
   }
-  nr.el = el('select', {}, ...['viewer', 'operator', 'admin'].map((r) => el('option', { value: r, text: r })));
+  nr.el = el('select', {}, ...['viewer', 'operator', 'admin'].map((r) =>
+    el('option', { value: r, text: r[0].toUpperCase() + r.slice(1) })));
 
   box.replaceChildren(
     el('div', { class: 'set-head' },
       el('span', { text: 'Users' }),
-      el('button', { class: 'set-close', onclick: () => overlay.classList.add('hidden') }, '×')),
+      el('button', { class: 'set-close', title: 'Close', onclick: () => overlay.classList.add('hidden') }, '×')),
     el('div', { class: 'set-section' }, list),
     el('div', { class: 'set-section' },
       el('h4', { text: 'Add user' }),
       el('div', { class: 'user-add' },
         field('Username', 'text', nu), field('Password', 'password', np),
         el('label', { class: 'auth-field' }, el('span', { text: 'Role' }), nr.el),
-        el('button', { class: 'primary', onclick: add }, 'add'))));
+        el('button', { class: 'primary', onclick: add }, 'Add'))));
   overlay.classList.remove('hidden');
   load();
 }

@@ -19,7 +19,7 @@ export function openKubectl() {
     el('code', { text: 'kubectl get pods -A' }));
 
   const searchInput = el('input', {
-    class: 'term-search', placeholder: 'search (Enter / Shift+Enter)',
+    class: 'term-search', placeholder: 'Search (Enter / Shift+Enter)',
     onkeydown: (e) => {
       if (e.key !== 'Enter') return;
       if (e.shiftKey) search.findPrevious(searchInput.value);
@@ -27,12 +27,12 @@ export function openKubectl() {
     },
   });
   const toolbar = el('div', { class: 'term-toolbar' },
-    el('span', { class: 'target-label', text: 'kubectl' }),
-    el('span', { class: 'muted', text: 'in-cluster' }),
+    el('span', { class: 'target-label', text: 'Kubectl' }),
+    el('span', { class: 'muted', text: 'In-cluster' }),
     searchInput,
-    el('button', { text: 'A−', onclick: () => setFont(fontSize - 1) }),
-    el('button', { text: 'A+', onclick: () => setFont(fontSize + 1) }),
-    el('button', { text: 'restart', title: 'restart the console shell',
+    el('button', { text: 'A−', title: 'Smaller font', onclick: () => setFont(fontSize - 1) }),
+    el('button', { text: 'A+', title: 'Larger font', onclick: () => setFont(fontSize + 1) }),
+    el('button', { text: 'Restart', title: 'Restart the console shell',
                    onclick: () => { deliberate = true; try { ws?.close(); } catch { /* */ } reconnect(); } }));
 
   const termHost = el('div', { class: 'term-host' });

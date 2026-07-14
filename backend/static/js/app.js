@@ -110,10 +110,10 @@ function updateCounts() {
   const running = pods.filter((p) => p.phase === 'Running' && p.containers.every((c) => c.ready)).length;
   const issues = pods.filter(podBad).length;
   $('#sb-counts').replaceChildren(
-    el('span', { class: 'sb-metric', title: 'pods' }, el('span', { class: 'sb-dot ok' }), `${running} running`),
-    el('span', { class: `sb-metric ${issues ? 'warn' : ''}`, title: 'pods with issues' },
+    el('span', { class: 'sb-metric', title: 'Pods' }, el('span', { class: 'sb-dot ok' }), `${running} running`),
+    el('span', { class: `sb-metric ${issues ? 'warn' : ''}`, title: 'Pods with issues' },
        el('span', { class: `sb-dot ${issues ? 'bad' : 'muted'}` }), `${issues} issues`),
-    el('span', { class: 'sb-metric', title: 'total pods' }, `${pods.length} pods`));
+    el('span', { class: 'sb-metric', title: 'Total pods' }, `${pods.length} pods`));
   let sessions = 0;
   for (const list of state.presence.values()) sessions += list.length;
   $('#sb-sessions').textContent = sessions ? `${sessions} session${sessions > 1 ? 's' : ''}` : '';
@@ -122,7 +122,7 @@ function updateConn() {
   const ok = state.connected;
   $('#sb-conn').classList.toggle('online', ok);
   $('#sb-conn').classList.toggle('offline', !ok);
-  $('#sb-conn-text').textContent = ok ? 'connected' : 'reconnecting…';
+  $('#sb-conn-text').textContent = ok ? 'Connected' : 'Reconnecting…';
 }
 
 function wireStatusBar() {

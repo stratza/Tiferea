@@ -64,24 +64,24 @@ export function openTopology() {
   if (focusOrBlink(TAB_ID)) return;
 
   const nsSel = el('select', {});
-  const mountsBox = el('input', { type: 'checkbox', title: 'show ConfigMap/Secret mounts' });
+  const mountsBox = el('input', { type: 'checkbox', title: 'Show ConfigMap/Secret mounts' });
   const status = el('span', { class: 'muted' });
   const svgHost = el('div', { class: 'topo-host' });
   let resetView = null;   // assigned by draw(); re-fits the whole graph
   const toolbar = el('div', { class: 'term-toolbar' },
     el('span', { class: 'target-label', text: 'Topology' }), nsSel,
-    el('label', {}, mountsBox, 'mounts'),
-    el('button', { text: '🔄 refresh', onclick: refresh }),
-    el('button', { text: '⤢ fit', title: 'fit graph to view (or double-click the map)',
+    el('label', {}, mountsBox, 'Mounts'),
+    el('button', { text: '🔄 Refresh', onclick: refresh }),
+    el('button', { text: '⤢ Fit', title: 'Fit graph to view (or double-click the map)',
                    onclick: () => resetView?.() }),
     status,
-    el('span', { class: 'muted', text: 'drag to pan · wheel to zoom' }));
+    el('span', { class: 'muted', text: 'Drag to pan · wheel to zoom' }));
   const root = el('div', { class: 'topo-root' }, toolbar, svgHost);
 
   function fillNamespaces() {
     const namespaces = [...new Set([...state.pods.values()].map((p) => p.namespace))].sort();
     const cur = nsSel.value;
-    nsSel.replaceChildren(el('option', { value: '', text: 'all namespaces' }),
+    nsSel.replaceChildren(el('option', { value: '', text: 'All namespaces' }),
       ...namespaces.map((ns) => el('option', { value: ns, text: ns })));
     nsSel.value = cur;
   }

@@ -34,17 +34,17 @@ export function openLogs(namespace, pod, containers, opts = {}) {
 
   const tailSel = el('select', {},
     ...[200, 500, 2000, 10000].map((n) =>
-      el('option', { value: n, text: `tail ${n}`, selected: n === 500 || null })));
+      el('option', { value: n, text: `Tail ${n}`, selected: n === 500 || null })));
   const prevBox = el('input', { type: 'checkbox', checked: opts.previous || null });
   const tsBox = el('input', { type: 'checkbox' });
   const followBox = el('input', { type: 'checkbox', checked: true });
   followBox.addEventListener('change', () => { follow = followBox.checked; });
-  const pauseBtn = el('button', { text: '⏸ pause', onclick: () => {
+  const pauseBtn = el('button', { text: '⏸ Pause', onclick: () => {
     paused = !paused;
-    pauseBtn.textContent = paused ? '▶ resume' : '⏸ pause';
+    pauseBtn.textContent = paused ? '▶ Resume' : '⏸ Pause';
     if (!paused) render();
   } });
-  const filterInput = el('input', { placeholder: 'filter (regex)', class: 'log-filter',
+  const filterInput = el('input', { placeholder: 'Filter (regex)', class: 'log-filter',
     oninput: () => {
       try {
         filterRe = filterInput.value ? new RegExp(filterInput.value, 'i') : null;
@@ -54,17 +54,17 @@ export function openLogs(namespace, pod, containers, opts = {}) {
     } });
 
   const downloads = containers.map((c) =>
-    el('a', { class: 'button', text: `⬇ ${merged ? c : 'download'}`,
+    el('a', { class: 'button', text: `⬇ ${merged ? c : 'Download'}`,
               href: `/api/logs/${namespace}/${pod}/${c}?tailLines=0&previous=0` }));
 
   const toolbar = el('div', { class: 'term-toolbar' },
     el('span', { class: 'target-label', text: `${namespace}/${pod}${merged ? '' : '/' + containers[0]}` }),
     pauseBtn,
-    el('label', {}, followBox, 'follow'),
-    el('label', { title: 'previous instance' }, prevBox, 'previous'),
-    el('label', {}, tsBox, 'timestamps'),
+    el('label', {}, followBox, 'Follow'),
+    el('label', { title: 'Previous instance' }, prevBox, 'Previous'),
+    el('label', {}, tsBox, 'Timestamps'),
     tailSel, filterInput,
-    el('button', { text: '🔄 reopen', onclick: reopen }),
+    el('button', { text: '🔄 Reopen', onclick: reopen }),
     ...downloads);
 
   const root = el('div', { class: 'log-root' }, toolbar, output);

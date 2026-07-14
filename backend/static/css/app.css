@@ -3,6 +3,7 @@
    status colors (health, errors, warnings) stay but desaturated. */
 
 :root, body[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0f0f10;
   --bg2: #171718;
   --bg3: #202022;
@@ -20,6 +21,7 @@
   --term-bg: #141415;
 }
 body[data-theme="light"] {
+  color-scheme: light;
   --bg: #ffffff;
   --bg2: #f7f7f8;
   --bg3: #ededee;
@@ -75,6 +77,9 @@ button, select, .button {
 button:hover, select:hover, .button:hover {
   background: var(--accent-soft); border-color: var(--muted);
 }
+/* The native dropdown popup follows color-scheme (set per theme above);
+   option styling covers browsers that paint options from CSS instead. */
+select option { background: var(--bg2); color: var(--fg); }
 button.active { background: var(--accent-soft); border-color: var(--fg); }
 button.danger:hover { border-color: var(--bad); color: var(--bad); background: transparent; }
 input, textarea {

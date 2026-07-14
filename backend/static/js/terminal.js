@@ -72,19 +72,19 @@ export function openTerminal(namespace, pod, container, opts = {}) {
 
   const banner = el('div', { class: 'term-banner hidden' });
   const searchInput = el('input', {
-    class: 'term-search', placeholder: 'search (Enter / Shift+Enter)',
+    class: 'term-search', placeholder: 'Search (Enter / Shift+Enter)',
     onkeydown: (e) => {
       if (e.key !== 'Enter') return;
       if (e.shiftKey) search.findPrevious(searchInput.value);
       else search.findNext(searchInput.value);
     },
   });
-  const bcast = el('input', { type: 'checkbox', title: 'include in broadcast input' });
-  const snippetSel = el('select', { class: 'snippet-select', title: 'insert snippet' },
-    el('option', { value: '', text: 'snippets…' }));
+  const bcast = el('input', { type: 'checkbox', title: 'Include in broadcast input' });
+  const snippetSel = el('select', { class: 'snippet-select', title: 'Insert snippet' },
+    el('option', { value: '', text: 'Snippets…' }));
   snippetSel.addEventListener('focus', async () => {
     const snippets = snippetsCache || await loadSnippets();
-    snippetSel.replaceChildren(el('option', { value: '', text: 'snippets…' }),
+    snippetSel.replaceChildren(el('option', { value: '', text: 'Snippets…' }),
       ...snippets.map((s) => el('option', { value: s.command, text: s.name })));
   });
   snippetSel.addEventListener('change', () => {
@@ -95,32 +95,32 @@ export function openTerminal(namespace, pod, container, opts = {}) {
   const shellLabel = el('span', { class: 'muted', text: opts.shell || '…' });
 
   // Owner-only share toggle; collaborators get a leave button instead.
-  const shareBtn = el('button', { class: 'share-btn', title: 'share this session with other operators',
+  const shareBtn = el('button', { class: 'share-btn', title: 'Share this session with other operators',
     onclick: () => { shared = !shared; sendCtrl({ type: 'share', on: shared }); renderBanner(); updateShareBtn(); } },
-    '🤝 share');
+    '🤝 Share');
   function updateShareBtn() {
-    shareBtn.textContent = shared ? '🤝 sharing' : '🤝 share';
+    shareBtn.textContent = shared ? '🤝 Sharing' : '🤝 Share';
     shareBtn.classList.toggle('active', shared);
   }
 
   const ownerCtrls = [
-    el('button', { text: '➕', title: 'open another session in this container',
+    el('button', { text: '➕', title: 'Open another session in this container',
                    onclick: () => openTerminal(namespace, pod, container, { ...opts, join: null, fresh: true }) }),
     shareBtn,
-    el('button', { text: '🛑 kill', class: 'danger', title: 'terminate this session',
+    el('button', { text: '🛑 Kill', class: 'danger', title: 'Terminate this session',
                    onclick: () => { deliberate = true; sendCtrl({ type: 'close' }); } }),
   ];
   const joinCtrls = [
-    el('button', { text: '🚪 leave', class: 'danger', title: 'leave this shared session',
+    el('button', { text: '🚪 Leave', class: 'danger', title: 'Leave this shared session',
                    onclick: () => { deliberate = true; closeTab(tabId); } }),
   ];
 
   const toolbar = el('div', { class: 'term-toolbar' },
     el('span', { class: 'target-label', text: target }), shellLabel,
-    el('label', { class: 'bcast-label', title: 'broadcast-input target' }, bcast, 'Broadcast'),
+    el('label', { class: 'bcast-label', title: 'Broadcast-input target' }, bcast, 'Broadcast'),
     snippetSel, searchInput,
-    el('button', { text: 'A−', title: 'smaller font', onclick: () => setFont(fontSize - 1) }),
-    el('button', { text: 'A+', title: 'larger font', onclick: () => setFont(fontSize + 1) }),
+    el('button', { text: 'A−', title: 'Smaller font', onclick: () => setFont(fontSize - 1) }),
+    el('button', { text: 'A+', title: 'Larger font', onclick: () => setFont(fontSize + 1) }),
     ...(joining ? joinCtrls : ownerCtrls));
 
   const termHost = el('div', { class: 'term-host' });
@@ -189,7 +189,7 @@ export function openTerminal(namespace, pod, container, opts = {}) {
       banner.classList.add('shared');
       banner.replaceChildren(
         `sharing this session · ${participants} connected · anyone who can reach TifEra can join and type `,
-        el('button', { class: 'link-btn', text: 'stop sharing',
+        el('button', { class: 'link-btn', text: 'Stop sharing',
                        onclick: () => { shared = false; sendCtrl({ type: 'share', on: false }); renderBanner(); updateShareBtn(); } }));
       banner.classList.remove('hidden');
       return;
@@ -208,7 +208,7 @@ export function openTerminal(namespace, pod, container, opts = {}) {
     banner.replaceChildren(
       `no shell found in ${container} - `,
       el('button', {
-        text: 'attach ephemeral debug container',
+        text: 'Attach ephemeral debug container',
         onclick: async (e) => {
           e.target.disabled = true;
           try {

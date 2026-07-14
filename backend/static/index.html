@@ -18,30 +18,30 @@
       <header id="brand">
         <span class="logo">⬢ TifEra</span>
         <span class="brand-btns">
-          <button id="theme-btn" class="icon-btn" title="toggle dark/light theme">◐</button>
-          <button id="settings-btn" class="icon-btn" title="settings">
+          <button id="theme-btn" class="icon-btn" title="Toggle dark/light theme">◐</button>
+          <button id="settings-btn" class="icon-btn" title="Settings">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
         </span>
       </header>
 
-      <button id="search-trigger" title="search & command palette (Ctrl+K)">
+      <button id="search-trigger" title="Search & command palette (Ctrl+K)">
         <span class="search-icon">🔍</span>
         <span class="search-text">Search pods, jump to view…</span>
         <kbd>Ctrl K</kbd>
       </button>
 
-      <input id="filter" placeholder="filter: name, ns, label=x, node" autocomplete="off">
+      <input id="filter" placeholder="Filter: name, ns, label=x, node" autocomplete="off">
 
       <nav id="global-tabs">
-        <button data-open="kubectl"><span class="nav-ico">⎈</span>kubectl</button>
+        <button data-open="kubectl"><span class="nav-ico">⎈</span>Kubectl</button>
         <button data-open="metrics"><span class="nav-ico">📊</span>Metrics</button>
         <button data-open="topology"><span class="nav-ico">🕸</span>Topology</button>
         <button data-open="events"><span class="nav-ico">🔔</span>Events</button>
         <button data-open="actions"><span class="nav-ico">🧾</span>Actions</button>
         <button data-open="snippets"><span class="nav-ico">✂</span>Snippets</button>
         <button data-open="recordings"><span class="nav-ico">🎬</span>Recordings</button>
-        <button id="bcast-toggle" title="broadcast input to multiple terminals"><span class="nav-ico">📡</span>Broadcast</button>
+        <button id="bcast-toggle" title="Broadcast input to multiple terminals"><span class="nav-ico">📡</span>Broadcast</button>
       </nav>
 
       <div id="rbac-banner" class="banner hidden"></div>
@@ -56,13 +56,13 @@
       <div id="bulkbar" class="hidden"></div>
     </aside>
 
-    <div id="sidebar-resize" title="drag to resize"></div>
+    <div id="sidebar-resize" title="Drag to resize"></div>
 
     <main id="main">
       <div id="tabbar"></div>
       <div id="bcast-bar" class="hidden">
         <span class="bcast-tag">📡 Broadcast</span>
-        <input id="bcast-input" placeholder="type a command - Enter sends it to every terminal with Broadcast checked">
+        <input id="bcast-input" placeholder="Type a command - Enter sends it to every terminal with Broadcast checked">
       </div>
       <div id="panels">
         <div id="welcome">
@@ -98,7 +98,7 @@
 
   <footer id="statusbar" class="hidden">
     <div class="sb-left">
-      <span id="sb-conn" class="sb-item"><span class="sb-dot"></span><span id="sb-conn-text">connecting…</span></span>
+      <span id="sb-conn" class="sb-item"><span class="sb-dot"></span><span id="sb-conn-text">Connecting…</span></span>
       <span class="sb-sep"></span>
       <span id="sb-cluster" class="sb-item" title="TifEra pod identity (Downward API)">–</span>
       <span class="sb-sep"></span>
@@ -118,9 +118,9 @@
       <input id="palette-input" placeholder="Search pods & containers, or jump to a view…" autocomplete="off">
       <div id="palette-list" class="palette-list"></div>
       <div class="palette-foot">
-        <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
-        <span><kbd>↵</kbd> open</span>
-        <span><kbd>Esc</kbd> close</span>
+        <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+        <span><kbd>↵</kbd> Open</span>
+        <span><kbd>Esc</kbd> Close</span>
       </div>
     </div>
   </div>

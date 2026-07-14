@@ -13,17 +13,17 @@ export function openActions() {
   const root = el('div', { class: 'tools-root' },
     el('div', { class: 'term-toolbar' },
       el('span', { class: 'target-label', text: 'Action log' }),
-      el('button', { text: '🔄 refresh', onclick: load }),
-      el('a', { class: 'button', text: '⬇ export JSONL', href: '/api/actions/export',
+      el('button', { text: '🔄 Refresh', onclick: load }),
+      el('a', { class: 'button', text: '⬇ Export JSONL', href: '/api/actions/export',
                 download: 'tifera-actions.jsonl' }),
       el('span', { class: 'muted',
-                   text: 'names are self-declared - attribution is cooperative, not forensic' })),
+                   text: 'Names are self-declared - attribution is cooperative, not forensic' })),
     el('div', { class: 'fs-scroll' },
       el('table', { class: 'fs-table' },
         el('thead', {}, el('tr', {},
-          el('th', { text: 'time' }), el('th', { text: 'action' }),
-          el('th', { text: 'client' }), el('th', { text: 'ip' }),
-          el('th', { text: 'target' }), el('th', { text: 'detail' }))),
+          el('th', { text: 'Time' }), el('th', { text: 'Action' }),
+          el('th', { text: 'Client' }), el('th', { text: 'IP' }),
+          el('th', { text: 'Target' }), el('th', { text: 'Detail' }))),
         tbody)));
 
   async function load() {
@@ -55,19 +55,19 @@ export function openEventsFeed() {
   const root = el('div', { class: 'tools-root' },
     el('div', { class: 'term-toolbar' },
       el('span', { class: 'target-label', text: 'Cluster events' }), nsSel,
-      el('button', { text: '🔄 refresh', onclick: () => load() })),
+      el('button', { text: '🔄 Refresh', onclick: () => load() })),
     el('div', { class: 'fs-scroll' },
       el('table', { class: 'fs-table' },
         el('thead', {}, el('tr', {},
-          el('th', { text: 'time' }), el('th', { text: 'type' }),
-          el('th', { text: 'object' }), el('th', { text: 'reason' }),
-          el('th', { text: 'message' }), el('th', { text: '×' }))),
+          el('th', { text: 'Time' }), el('th', { text: 'Type' }),
+          el('th', { text: 'Object' }), el('th', { text: 'Reason' }),
+          el('th', { text: 'Message' }), el('th', { text: '×' }))),
         tbody)));
 
   function fillNamespaces() {
     const namespaces = [...new Set([...state.pods.values()].map((p) => p.namespace))].sort();
     const cur = nsSel.value;
-    nsSel.replaceChildren(el('option', { value: '', text: 'all namespaces' }),
+    nsSel.replaceChildren(el('option', { value: '', text: 'All namespaces' }),
       ...namespaces.map((ns) => el('option', { value: ns, text: ns })));
     nsSel.value = cur;
   }
@@ -102,14 +102,14 @@ export function openSnippets() {
   const TAB_ID = 'snippets';
   if (findTab(TAB_ID)) { activate(TAB_ID); return; }
   const tbody = el('tbody');
-  const nameInput = el('input', { placeholder: 'name' });
-  const cmdInput = el('input', { placeholder: 'command', class: 'grow' });
+  const nameInput = el('input', { placeholder: 'Name' });
+  const cmdInput = el('input', { placeholder: 'Command', class: 'grow' });
 
   const root = el('div', { class: 'tools-root' },
     el('div', { class: 'term-toolbar' },
       el('span', { class: 'target-label', text: 'Command snippets' }),
       nameInput, cmdInput,
-      el('button', { text: '+ add', onclick: async () => {
+      el('button', { text: '+ Add', onclick: async () => {
         if (!nameInput.value || !cmdInput.value) { toast('name and command required', 'warn'); return; }
         try {
           await api('/api/snippets', {
@@ -124,7 +124,7 @@ export function openSnippets() {
     el('div', { class: 'fs-scroll' },
       el('table', { class: 'fs-table' },
         el('thead', {}, el('tr', {},
-          el('th', { text: 'name' }), el('th', { text: 'command' }), el('th', { text: '' }))),
+          el('th', { text: 'Name' }), el('th', { text: 'Command' }), el('th', { text: '' }))),
         tbody)));
 
   async function load() {
@@ -134,9 +134,9 @@ export function openSnippets() {
         el('td', { text: s.name }),
         el('td', { class: 'mono', text: s.command }),
         el('td', { class: 'fs-actions' },
-          el('button', { text: '📋 insert', title: 'insert into active terminal',
+          el('button', { text: '📋 Insert', title: 'Insert into active terminal',
                          onclick: () => pasteToActive(s.command) }),
-          el('button', { text: '🗑', class: 'danger', onclick: async () => {
+          el('button', { text: '🗑', title: 'Delete', class: 'danger', onclick: async () => {
             await api(`/api/snippets/${s.id}`, { method: 'DELETE' });
             invalidateSnippets();
             load();

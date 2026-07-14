@@ -4,13 +4,22 @@ All notable changes to TifEra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] - 2026-07-14
 
 ### Changed
+- All visible control labels (buttons, tooltips, dropdown options, table
+  headers, placeholders, checkbox labels) start with a capital letter and got
+  clearer names where they were terse (e.g. "dir" → "New dir").
 - Curated, colorful emoji icons restored across the UI (each action/view gets
   a distinct, meaningful glyph); fixed leftover de-emoji artifacts in several
   toolbars and dropped the grayscale filter on nav/palette icons.
 - Welcome-screen trust card updated to describe the login/roles model.
+
+### Fixed
+- **Native dropdown lists rendered bright white in dark mode** - the `<select>`
+  control itself was themed but the browser-drawn popup follows `color-scheme`,
+  which was never set. Each theme now declares its `color-scheme` (plus explicit
+  `option` colors for browsers that paint options from CSS).
 
 ## [0.2.0] - 2026-07-05
 
@@ -202,7 +211,8 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/stratza/tiferea/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/stratza/tiferea/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/stratza/tiferea/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/stratza/tiferea/compare/v0.1.1...v0.1.2
