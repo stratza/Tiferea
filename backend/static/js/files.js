@@ -3,7 +3,7 @@
 // edit warnings, bookmarks, and inline actions.
 
 import { api, client, el, fmtBytes, qsClient, sessionLabel, toast } from './util.js';
-import { on } from './state.js';
+import { off, on } from './state.js';
 import { addTab, focusOrBlink } from './tabs.js';
 
 const CHUNK = 8 * 1024 * 1024;   // upload slice size
@@ -41,6 +41,7 @@ export function openFiles(namespace, pod, container, startPath = '/') {
   const bookmarkKey = `tifera.bookmarks.${target}`;
   let path = startPath;
   let editing = null;   // path currently open in the editor
+  let editorListener = null;   // the on('editor', ...) handler for `editing`, if any
 
   const pathInput = el('input', { class: 'path-input', value: path,
     onkeydown: (e) => { if (e.key === 'Enter') load(pathInput.value.trim() || '/'); } });
@@ -124,14 +125,14 @@ export function openFiles(namespace, pod, container, startPath = '/') {
       const dest = joinPath(path, file.name);
       progress.classList.remove('hidden');
       try {
-        for (let off = 0; off < file.size || off === 0; off += CHUNK) {
-          const slice = file.slice(off, off + CHUNK);
-          const last = off + CHUNK >= file.size;
-          progress.textContent =
-            `uploading ${file.name}: ${Math.min(100, Math.round(100 * off / (file.size || 1)))}%`;
-          await api(`${base}/upload?path=${encodeURIComponent(dest)}&append=${off ? 1 : 0}` +
+        for (let sent = 0; sent < file.size || sent === 0; sent += CHUNK) {
+          const slice = file.slice(sent, sent + CHUNK);
+          const last = sent + slice.size >= file.size;
+          await api(`${base}/upload?path=${encodeURIComponent(dest)}&append=${sent ? 1 : 0}` +
                     `&final=${last ? 1 : 0}&total=${file.size}&${qsClient()}`,
                     { method: 'POST', body: slice });
+          progress.textContent =
+            `uploading ${file.name}: ${Math.min(100, Math.round(100 * (sent + slice.size) / (file.size || 1)))}%`;
           if (last) break;
         }
         toast(`uploaded ${file.name} (${fmtBytes(file.size)})`, 'info', 3000);
@@ -238,6 +239,7 @@ export function openFiles(namespace, pod, container, startPath = '/') {
   }
 
   function closeOverlay() {
+    if (editorListener) { off('editor', editorListener); editorListener = null; }
     if (editing) { editorSession('close', editing); editing = null; }
     editorHost.classList.add('hidden');
     editorHost.replaceChildren();
@@ -267,6 +269,7 @@ export function openFiles(namespace, pod, container, startPath = '/') {
       return;
     }
     let mtime = r.mtime ?? -1;
+    if (editorListener) { off('editor', editorListener); editorListener = null; }
     editing = p;
     const others = await editorSession('open', p);
     const warn = el('div', { class: `term-banner ${others.length ? '' : 'hidden'}` });
@@ -309,11 +312,12 @@ export function openFiles(namespace, pod, container, startPath = '/') {
     editorHost.classList.remove('hidden');
     area.focus();
 
-    on('editor', (m) => {
+    editorListener = (m) => {
       if (m.target !== target || m.path !== p || editing !== p) return;
       const rest = (m.editors || []).filter((x) => x.clientId !== client.id);
       setWarn(rest);
-    });
+    };
+    on('editor', editorListener);
   }
 
   addTab({

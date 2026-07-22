@@ -3,7 +3,7 @@
 // shared sessions (feature 1).
 
 import { $, api, client, el, qsClient, sessionLabel, toast, wsUrl } from './util.js';
-import { on } from './state.js';
+import { off, on } from './state.js';
 import { addTab, closeTab, focusOrBlink, getActive } from './tabs.js';
 
 let seq = 0;
@@ -280,7 +280,7 @@ export function openTerminal(namespace, pod, container, opts = {}) {
 
   // Live presence: co-tenant warnings, and participant counts for our own
   // shared/joined session.
-  on('presence', (m) => {
+  function onPresence(m) {
     if (m.target !== target || exited) return;
     const sessions = m.sessions || [];
     const mine = sessions.find((s) => s.sessionId === sessionId);
@@ -296,7 +296,8 @@ export function openTerminal(namespace, pod, container, opts = {}) {
     }
     knownOthers = ids;
     renderBanner();
-  });
+  }
+  on('presence', onPresence);
 
   const handle = {
     term, fit, bcast, target, sendText,
@@ -318,6 +319,7 @@ export function openTerminal(namespace, pod, container, opts = {}) {
       if (!joining) sendCtrl({ type: 'close' });
       try { ws?.close(); } catch { /* already closed */ }
       resizeObserver.disconnect();
+      off('presence', onPresence);
       handles.delete(tabId);
       term.dispose();
     },

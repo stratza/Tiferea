@@ -188,8 +188,11 @@ async def auth_login(request: Request):
 
 @app.post("/api/auth/viewer")
 def auth_viewer():
+    """Anonymous "continue as viewer" - the token carries no username so it
+    can never collide with (or hide the removal of) a real named account
+    that happens to have the viewer role."""
     resp = JSONResponse({"user": {"username": "viewer", "role": "viewer"}})
-    _set_session(resp, "viewer", "viewer")
+    _set_session(resp, "", "viewer")
     return resp
 
 

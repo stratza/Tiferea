@@ -25,6 +25,17 @@ export function on(type, fn) {
   (handlers[type] ||= []).push(fn);
 }
 
+// Views that are opened/closed repeatedly (terminal/pod/files/metrics tabs)
+// must unsubscribe on close, or the handler - and everything its closure
+// holds onto (DOM nodes, xterm instances, charts) - leaks for the life of
+// the page.
+export function off(type, fn) {
+  const list = handlers[type];
+  if (!list) return;
+  const i = list.indexOf(fn);
+  if (i >= 0) list.splice(i, 1);
+}
+
 function emit(type, msg = {}) {
   for (const fn of handlers[type] || []) {
     try { fn(msg); } catch (e) { console.error(`handler for '${type}' failed`, e); }

@@ -204,14 +204,17 @@ class AuthStore:
         role = data.get("r")
         if role not in ROLES:
             return None
-        # Anonymous viewer tokens have no user record; named tokens must still
-        # match an existing user (so removed users lose access immediately).
-        if role != "viewer":
+        # Anonymous "continue as viewer" tokens carry no username (empty, not
+        # a real account) and skip the lookup below. Any named account - at
+        # any role, including viewer - must still match an existing user, so
+        # removing a user or changing their role revokes access immediately.
+        username = data.get("u") or ""
+        if username:
             with self._lock:
-                rec = self._users.get(data.get("u"))
+                rec = self._users.get(username)
             if rec is None or rec["role"] != role:
                 return None
-        return {"username": data.get("u"), "role": role}
+        return {"username": username or "viewer", "role": role}
 
 
 def _validate_username(name: str) -> None:

@@ -4,6 +4,34 @@ All notable changes to TifEra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.5] - 2026-07-22
+
+### Fixed
+- **A named viewer-role account kept access after removal.** Session-token
+  verification skipped the "does this user still exist" check for any token
+  with role `viewer`, on the assumption that only the anonymous "continue as
+  viewer" flow used that role. A real account created with the Viewer role
+  was skipped by the same check, so deleting that user (or changing their
+  role) did not revoke their already-issued session until it expired on its
+  own (up to the 12h default TTL). The anonymous flow now carries no
+  username at all, and every named account - at any role - is checked
+  against the user table on every request.
+- **Memory leaks in the terminal, pod, metrics and files views.** These tabs
+  subscribe to the shared `/ws/events` handler bus but never unsubscribed on
+  close, so every terminal opened/closed, every pod panel viewed, every
+  reopen of the Metrics tab, and every file opened in the built-in editor
+  left a dead handler (and everything its closure held onto - DOM nodes,
+  xterm instances, charts) permanently in memory. Long-running console
+  sessions (this is an ops console meant to stay open for a shift) would
+  accumulate these indefinitely. Added `off()` to the event bus and wired up
+  unsubscription in all four views.
+- **Upload progress bar was frozen at "0%" for most uploads.** The percentage
+  was computed from the byte offset *before* the current chunk was sent, so
+  a single-chunk upload (any file ≤ 8MB, the common case) showed 0% for its
+  entire duration, and the last chunk of a larger upload never reached 100%.
+  Progress is now computed from bytes actually sent after each chunk
+  completes.
+
 ## [0.3.4] - 2026-07-22
 
 ### Fixed
@@ -289,7 +317,8 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/stratza/tiferea/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/stratza/tiferea/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/stratza/tiferea/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/stratza/tiferea/compare/v0.3.1...v0.3.2

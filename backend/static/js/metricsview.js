@@ -3,8 +3,8 @@
 // click-to-expand 60-minute usage charts (from the poller's history).
 
 import { api, cpuToMillicores, el, fmtBytes, fmtCpu, fmtTime, memToBytes } from './util.js';
-import { on, podByName, state } from './state.js';
-import { addTab, findTab, focusOrBlink } from './tabs.js';
+import { off, on, podByName, state } from './state.js';
+import { addTab, focusOrBlink } from './tabs.js';
 import { openPod } from './podpanel.js';
 import { timeChart } from './chart.js';
 
@@ -255,9 +255,10 @@ export function openMetrics() {
     renderTable();
   }
 
+  const onMetrics = () => { if (!closed) render(); };
   addTab({ id: TAB_ID, title: '📊 Metrics', kind: 'metrics', el: body,
            restore: { kind: 'metrics' },
-           onClose: () => { closed = true; destroyCharts(); } });
-  on('metrics', () => { if (!closed && findTab(TAB_ID)) render(); });
+           onClose: () => { closed = true; off('metrics', onMetrics); destroyCharts(); } });
+  on('metrics', onMetrics);
   render();
 }

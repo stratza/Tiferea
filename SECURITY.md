@@ -55,9 +55,13 @@ open public issues for unpatched vulnerabilities.
 
 ## Supported versions
 
+Only the latest released minor version is supported; please upgrade before
+reporting an issue against an older one.
+
 | Version | Supported |
 |---|---|
-| 0.1.x | yes |
+| 0.3.x | yes |
+| < 0.3 | no |
 
 ## Hardening checklist for operators
 

@@ -4,8 +4,8 @@
 
 import { api, cpuToMillicores, el, fmtAge, fmtBytes, fmtCpu, memToBytes,
          qsClient, toast } from './util.js';
-import { canOperate, isSelfPod, on, state } from './state.js';
-import { addTab, findTab, focusOrBlink } from './tabs.js';
+import { canOperate, isSelfPod, off, on, state } from './state.js';
+import { addTab, focusOrBlink } from './tabs.js';
 import { openTerminal } from './terminal.js';
 import { openFiles } from './files.js';
 import { openLogs } from './logsview.js';
@@ -182,15 +182,16 @@ export function openPod(pod) {
   }
 
   const rerender = () => { const p = current(); renderHeader(p); renderContainers(p); };
-  on('pods', (m) => {
-    if (!findTab(tabId)) return;
+  const onPods = (m) => {
     if (!m.pod || (m.pod.namespace === namespace && m.pod.name === name)) rerender();
-  });
-  on('metrics', () => { if (findTab(tabId)) rerender(); });
+  };
+  const onMetrics = () => rerender();
+  on('pods', onPods);
+  on('metrics', onMetrics);
 
   addTab({ id: tabId, title: `📦 ${name}`, kind: 'pod', el: root,
            restore: { kind: 'pod', ns: namespace, name },
-           onClose: destroySparks });
+           onClose: () => { off('pods', onPods); off('metrics', onMetrics); destroySparks(); } });
   rerender();
   loadEvents();
 }
