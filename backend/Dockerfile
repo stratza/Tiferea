@@ -21,7 +21,8 @@ LABEL org.opencontainers.image.title="TifEra" \
       org.opencontainers.image.source="https://github.com/stratza/tiferea"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    HOME=/tmp
 
 WORKDIR /app
 
@@ -33,7 +34,15 @@ COPY --from=kubectl /tmp/kubectl /usr/local/bin/kubectl
 COPY tifera ./tifera
 COPY static ./static
 
-USER 65532:65532
+# Named, non-root account for UID/GID 65532 (matches the pod securityContext's
+# runAsUser/runAsGroup). A bare numeric UID has no /etc/passwd entry, which
+# makes some tools misbehave ("I have no name!", failed getpwuid lookups) -
+# notably inside the in-cluster kubectl console's interactive bash shell.
+# Home is /tmp: the image root is read-only at runtime.
+RUN groupadd -g 65532 tifera \
+    && useradd -u 65532 -g 65532 -d /tmp -s /usr/sbin/nologin -c "TifEra" tifera
+
+USER tifera:tifera
 EXPOSE 8080
 
 ENTRYPOINT ["python", "-m", "tifera"]

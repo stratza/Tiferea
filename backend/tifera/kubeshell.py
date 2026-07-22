@@ -174,8 +174,12 @@ class KubeShellManager:
             with self._lock:
                 active = list(self._shells.values())
             for s in active:
-                if not s.closed.is_set() and now - s.last_activity > cfg.IDLE_TIMEOUT_SECONDS:
-                    s.close("idle timeout")
+                try:
+                    if not s.closed.is_set() and now - s.last_activity > cfg.IDLE_TIMEOUT_SECONDS:
+                        s.close("idle timeout")
+                except Exception:  # noqa: BLE001 - one bad shell must not stop
+                    # the reaper from ever running again.
+                    log.exception("kubectl console reaper failed on session %s", s.id)
 
 
 shells = KubeShellManager()

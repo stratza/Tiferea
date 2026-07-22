@@ -13,6 +13,7 @@ Only object *names* are exposed, never secret values.
 """
 
 import logging
+import time
 
 from kubernetes import client
 
@@ -53,10 +54,13 @@ def _ready_endpoint_names(endpoints) -> set[tuple[str, str]]:
 
 def summary() -> dict:
     """Cluster-wide per-namespace counts for the topology overview cards."""
+    started = time.monotonic()
     v1 = client.CoreV1Api()
     pods = v1.list_pod_for_all_namespaces().items
     services = v1.list_service_for_all_namespaces().items
     endpoints = v1.list_endpoints_for_all_namespaces().items
+    log.info("topology summary: %d pods, %d services, %d endpoints in %.1fs",
+             len(pods), len(services), len(endpoints), time.monotonic() - started)
 
     stats: dict[str, dict] = {}
 

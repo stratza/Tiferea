@@ -162,7 +162,7 @@ spec:
         - name: tifera
           # Local/source build. For a published release use the pinned
           # manifest from GitHub Releases (image ghcr.io/<owner>/tifera:<ver>).
-          image: tifera:0.3.3
+          image: tifera:0.3.4
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -197,12 +197,20 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
           resources:
+            # TifEra keeps an in-memory snapshot of the whole cluster (pod
+            # inventory, the palette's resource index - which briefly holds
+            # full Secret/ConfigMap bodies while extracting names - and
+            # per-container metrics history), so memory scales with cluster
+            # size, not with TifEra's own workload. Raise this for large
+            # clusters (many namespaces/pods, or many/large Secrets); the pod
+            # logs how big each snapshot was on every rebuild, so check those
+            # against usage before raising blindly.
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 192Mi
             limits:
               cpu: "1"
-              memory: 256Mi
+              memory: 512Mi
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

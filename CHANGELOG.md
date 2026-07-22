@@ -4,6 +4,40 @@ All notable changes to TifEra are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.4] - 2026-07-22
+
+### Fixed
+- **Crashes on large clusters, most likely OOM kills.** TifEra keeps
+  in-memory, cluster-wide snapshots (pod inventory, the command palette's
+  resource index, per-container metrics history) whose size scales with
+  cluster size rather than with TifEra's own footprint - the fixed 256Mi
+  memory limit could not hold that on a large cluster. The default request/
+  limit is raised to 192Mi/512Mi in both the plain manifest and the Helm
+  chart, and every full-cluster listing operation (pod inventory resync, the
+  resource index rebuild, topology summary, metrics history) now logs its
+  item count and timing so future incidents can be correlated against actual
+  memory usage instead of guessed at.
+- **A single bad session could permanently kill the session/kubectl-console
+  reaper.** Idle-timeout and reconnect-grace cleanup ran with no exception
+  handling around each session; one failure (e.g. a thread that could not be
+  spawned under load) stopped the reaper forever, silently leaking PTYs and
+  exec streams until the pod ran out of memory. Reaping is now isolated
+  per-session so one failure just gets logged and skipped.
+- **The metrics poller could die silently and never recover** if a single
+  poll iteration raised - now the poll loop logs and keeps going.
+- **Container had no username for its numeric UID** (65532), which broke
+  tools that look up the current user (visible as `I have no name!` in the
+  in-cluster kubectl console's shell prompt). The image now creates a
+  `tifera` user/group at that UID/GID with `HOME=/tmp`.
+
+### Changed
+- **Better diagnosability.** Unhandled exceptions on any HTTP route are now
+  logged with a full traceback, method, path and client IP before returning
+  the generic 500 (previously they vanished into uvicorn's default handling).
+  Uncaught exceptions in any background thread (watch loops, pollers,
+  reapers) are now logged with the thread name instead of only appearing as
+  an unlabeled traceback on stderr.
+
 ## [0.3.3] - 2026-07-14
 
 ### Changed
@@ -255,7 +289,8 @@ k3s cluster (v1.36).
   visible banner when the console loses its backend connection, probe
   timeouts hardened in the manifest.
 
-[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/stratza/tiferea/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/stratza/tiferea/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/stratza/tiferea/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/stratza/tiferea/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/stratza/tiferea/compare/v0.2.0...v0.3.1

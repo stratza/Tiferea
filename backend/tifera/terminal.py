@@ -338,13 +338,18 @@ class SessionManager:
             with self._lock:
                 active = list(self._sessions.values())
             for s in active:
-                if s.closed.is_set():
-                    continue
-                if (s.detached_at is not None
-                        and now - s.detached_at > cfg.RECONNECT_GRACE_SECONDS):
-                    s.close("reconnect grace expired")
-                elif now - s.last_activity > cfg.IDLE_TIMEOUT_SECONDS:
-                    s.close("idle timeout")
+                try:
+                    if s.closed.is_set():
+                        continue
+                    if (s.detached_at is not None
+                            and now - s.detached_at > cfg.RECONNECT_GRACE_SECONDS):
+                        s.close("reconnect grace expired")
+                    elif now - s.last_activity > cfg.IDLE_TIMEOUT_SECONDS:
+                        s.close("idle timeout")
+                except Exception:  # noqa: BLE001 - one bad session must not
+                    # stop the reaper from ever running again (it is a
+                    # daemon thread with no supervisor).
+                    log.exception("session reaper failed on session %s", s.id)
 
 
 sessions = SessionManager()

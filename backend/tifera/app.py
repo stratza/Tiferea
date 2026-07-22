@@ -78,6 +78,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TifEra", version=__version__, lifespan=lifespan)
 
 
+@app.exception_handler(Exception)
+async def log_unhandled_exception(request: Request, exc: Exception):
+    """Unhandled errors otherwise vanish into uvicorn's default 500 response
+    with no context on which route/client triggered them - log it here before
+    falling back to the generic response."""
+    log.exception("unhandled error on %s %s (client=%s)",
+                 request.method, request.url.path,
+                 request.client.host if request.client else "?")
+    return JSONResponse({"detail": "internal error"}, status_code=500)
+
+
 @app.middleware("http")
 async def security_headers(request, call_next):
     response = await call_next(request)

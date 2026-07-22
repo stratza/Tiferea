@@ -18,13 +18,20 @@ service:
 
 replicaCount: 1      # keep 1: single ReadWriteOnce PVC
 
+# TifEra keeps an in-memory snapshot of the whole cluster (pod inventory, the
+# palette's resource index - which briefly holds full Secret/ConfigMap bodies
+# while extracting names - and per-container metrics history), so memory
+# scales with cluster size, not with TifEra's own workload. Raise this for
+# large clusters (many namespaces/pods, or many/large Secrets); the pod logs
+# how big each snapshot was on every rebuild, so check those against actual
+# usage before raising blindly.
 resources:
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 192Mi
   limits:
     cpu: "1"
-    memory: 256Mi
+    memory: 512Mi
 
 persistence:
   enabled: true      # snippets + action log survive pod rescheduling

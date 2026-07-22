@@ -113,6 +113,7 @@ class InventoryWatcher:
                 time.sleep(5)
 
     def _resync(self, v1) -> str | None:
+        started = time.monotonic()
         try:
             pods = v1.list_pod_for_all_namespaces()
         except Exception as exc:  # noqa: BLE001
@@ -121,6 +122,11 @@ class InventoryWatcher:
         with self._lock:
             self._pods = {p.metadata.uid: pod_summary(p) for p in pods.items}
         broadcaster.publish({"type": "snapshot", "pods": self.snapshot()})
+        # Cluster-wide, unbounded list - the size of this scales with the
+        # cluster, which matters for a fixed-memory pod: watch this number
+        # against the container's memory usage when diagnosing OOM kills.
+        log.info("pod inventory resynced: %d pods in %.1fs",
+                 len(pods.items), time.monotonic() - started)
         return pods.metadata.resource_version
 
     def _apply(self, event_type: str, pod) -> None:

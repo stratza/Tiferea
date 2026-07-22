@@ -85,7 +85,11 @@ class MetricsPoller:
         co = client.CustomObjectsApi()
         v1 = client.CoreV1Api()
         while True:
-            self._poll(co, v1)
+            try:
+                self._poll(co, v1)
+            except Exception:  # noqa: BLE001 - this is the whole poll loop;
+                # one bad response must not stop metrics forever.
+                log.exception("metrics poll iteration failed")
             # Slow retry cadence while metrics-server is missing.
             interval = cfg.METRICS_INTERVAL_SECONDS * (1 if self.available else 4)
             if self._stop.wait(max(interval, 5)):
@@ -131,6 +135,12 @@ class MetricsPoller:
             if self._polls % 40 == 0:  # prune history of deleted containers
                 for key in [k for k in self._history if k not in pods_now]:
                     del self._history[key]
+                # History grows with (container count x retention window);
+                # worth having in the logs when correlating memory against
+                # cluster size.
+                log.info("metrics history: %d tracked targets, %d samples",
+                         len(self._history),
+                         sum(len(h) for h in self._history.values()))
             self._pods_now = pods_now
 
         if self._polls % 20 == 0 or not self._alloc:

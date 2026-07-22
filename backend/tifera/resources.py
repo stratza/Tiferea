@@ -34,16 +34,28 @@ class ResourceIndex:
         return items
 
     def _collect(self) -> list[dict]:
+        started = time.monotonic()
         core = client.CoreV1Api()
         apps = client.AppsV1Api()
         out: list[dict] = []
 
         def grab(kind, fn):
             try:
-                for it in fn(limit=2000).items:
+                # NB: this deserializes full objects (Secrets/ConfigMaps
+                # included, with their data payloads) even though only
+                # name/namespace are kept - on a cluster with many/large
+                # Secrets this is the single biggest transient memory spike
+                # in the process. Logged per-kind so it's visible against a
+                # fixed pod memory limit when diagnosing OOM kills.
+                items = fn(limit=2000).items
+                for it in items:
                     out.append({"kind": kind,
                                 "namespace": it.metadata.namespace or "",
                                 "name": it.metadata.name})
+                if len(items) >= 2000:
+                    log.warning("%s list hit the 2000-item page cap - "
+                               "the palette index is truncated", kind)
+                log.debug("resource index: %d %s(s)", len(items), kind)
             except client.ApiException as exc:
                 if exc.status not in (403, 404):
                     log.warning("listing %s failed: %s", kind, exc.reason)
@@ -56,6 +68,8 @@ class ResourceIndex:
         grab("Deployment", apps.list_deployment_for_all_namespaces)
         grab("StatefulSet", apps.list_stateful_set_for_all_namespaces)
         grab("DaemonSet", apps.list_daemon_set_for_all_namespaces)
+        log.info("resource index rebuilt: %d items in %.1fs",
+                 len(out), time.monotonic() - started)
         return out
 
 
